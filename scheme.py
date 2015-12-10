@@ -107,6 +107,11 @@ class Tokenizer:
             token, self.line = self.regex.match(self.line).groups()
             if token != '' and not token.startswith(';'):
                 return token
+    def empty(self):
+        """Judge whether there are more than one expressions in a line.
+        :returns: The situation.
+        """
+        return self.line == ''
 
 def expand(parts):
     """Do expansion for list to be evaluated.
@@ -188,6 +193,20 @@ def transform(token):
                 except ValueError:
                     return Symbol(token)
 
+def mathop(op):
+    """Judge whether operator is a math one.
+    :op: Operator to be judged.
+    :returns: The situation.
+    """
+    return op in ['+','-','*','/',]
+
+def cmpop(op):
+    """Judge whether operator is a comparison one.
+    :op: Operator to be judged.
+    :returns: The situation.
+    """
+    return op in ['=','<','<=','>','>=',]
+
 def evaluate(parts, env=global_env):
     """Evaluate value of parts.
     :parts: Parts to be evaluated.
@@ -208,13 +227,18 @@ def evaluate(parts, env=global_env):
                 evaluate(i, env)
             parts = parts[-1]
         else:
-            func = env.find(parts.pop(0))
-            try:
-                exprs = [evaluate(i, env) for i in parts]
+            op = parts.pop(0)
+            func = env.find(op)
+            exprs = [evaluate(i, env) for i in parts]
+            if mathop(op):
                 import functools
                 return functools.reduce(func, exprs)
-            except ValueError:
-                return func(*exprs)
+            if cmpop(op):
+                for i in range(len(exprs)-1):
+                    if not func(exprs[i], exprs[i+1]):
+                        return False
+                return True
+            return func(*exprs)
 
 def require(var, condition, msg='wrong length'):
     """Assert if condition isn't satisfied.
@@ -229,11 +253,13 @@ def repl():
     """Read-evaluate-print-loop.
     """
     prompt = '> '
+    tokenizer = Tokenizer()
     while True:
         try:
-            sys.stderr.write(prompt)
+            if tokenizer.empty():
+                sys.stderr.write(prompt)
             sys.stderr.flush()
-            parts = parse(Tokenizer())
+            parts = parse(tokenizer)
             if parts is None:
                 return
             print(tostr(evaluate(parts)))
