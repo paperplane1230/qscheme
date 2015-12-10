@@ -2,6 +2,9 @@
 
 import sys
 
+class Symbol(str):
+    pass
+
 class Env(dict):
     """Context Environment."""
     def __init__(self, outer=None):
@@ -105,6 +108,25 @@ class Tokenizer:
             if token != '' and not token.startswith(';'):
                 return token
 
+def expand(parts):
+    """Do expansion for list to be evaluated.
+    :parts: List to be expanded.
+    :returns: List expanded.
+    """
+    if not isa(parts, list):
+        return parts
+    if parts[0] == 'if':
+        length = len(parts)
+        if length == 3:
+            return parts + [None]
+        require(parts, length == 4)
+        return [i for i in map(expand, parts)]
+    if parts[0] == 'begin':
+        if len(parts) == 1:
+            return parts + [None]
+        return [expand(i) for i in parts]
+    return parts
+
 def parse(tokenizer):
     """Parse scheme statements.
     :tokenizer: Tokenizer for parser to parse.
@@ -130,10 +152,10 @@ def parse(tokenizer):
     token = tokenizer.next_token()
     if token == None:
         return None
-    return read_ahead(token)
+    return expand(read_ahead(token))
 
 def transform(token):
-    """Transform token.
+    """Transform token into proper form.
     :token: To be transformed.
     :returns: Token after transformation.
     """
@@ -141,7 +163,7 @@ def transform(token):
         return True
     if token == '#f':
         return False
-    if token[0] == '""':
+    if token[0] == '"':
         return bytes(token[1:-1], "utf-8").decode('unicode-escape')
     if token.startswith('#b'):
         return int(token[2:], 2)
@@ -164,26 +186,35 @@ def transform(token):
                     import fractions
                     return fractions.Fraction(token)
                 except ValueError:
-                    return token
+                    return Symbol(token)
 
 def evaluate(parts, env=global_env):
     """Evaluate value of parts.
     :parts: Parts to be evaluated.
     :returns: Value of parts.
     """
-    if isa(parts, str):
-        return env.find(parts)
-    if not isa(parts, list):
-        return parts
-    if len(parts) == 0:
-        return ()
-    func = env.find(parts.pop(0))
-    try:
-        exprs = [evaluate(i) for i in parts]
-        import functools
-        return functools.reduce(func, exprs)
-    except ValueError:
-        return func(*exprs)
+    while True:
+        if isa(parts, Symbol):
+            return env.find(parts)
+        if not isa(parts, list):
+            return parts
+        if len(parts) == 0:
+            return ()
+        if parts[0] == 'if':
+            (_, cond, branch1, branch2) = parts
+            parts = branch1 if evaluate(cond, env) else branch2
+        elif parts[0] == 'begin':
+            for i in parts[1:-1]:
+                evaluate(i, env)
+            parts = parts[-1]
+        else:
+            func = env.find(parts.pop(0))
+            try:
+                exprs = [evaluate(i, env) for i in parts]
+                import functools
+                return functools.reduce(func, exprs)
+            except ValueError:
+                return func(*exprs)
 
 def require(var, condition, msg='wrong length'):
     """Assert if condition isn't satisfied.
@@ -203,7 +234,7 @@ def repl():
             sys.stderr.write(prompt)
             sys.stderr.flush()
             parts = parse(Tokenizer())
-            if parts == None:
+            if parts is None:
                 return
             print(tostr(evaluate(parts)))
         except KeyboardInterrupt:
