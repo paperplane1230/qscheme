@@ -2,16 +2,27 @@
 
 import sys
 
+isa = isinstance
+
 class Symbol(str):
+    """Class for symbol."""
     pass
 
 class Env(dict):
     """Context Environment."""
-    def __init__(self, outer=None):
+    def __init__(self, parms=(), args=(), outer=None):
         """Initialize the environment with specific parameters.
         :outer: The outer environment.
         """
         self.outer = outer
+        self.parms = parms
+        if isa(parms, Symbol):
+            self.update({parms:list(args)})
+        else:
+            if len(parms) != len(args):
+                raise TypeError('expected {0}, given {1}'
+                        .format(tostr(parms), tostr(args)))
+            self.update(list(zip(parms, args)))
     def find(self, op):
         """Find operator in the environment.
         :op: Operator to be found.
@@ -22,6 +33,24 @@ class Env(dict):
         if self.outer == None:
             raise LookupError(op)
         return self.outer.find(op)
+
+class Procedure:
+    """Class for procedure."""
+    def __init__(self, parms, body, env):
+        """Initialize a procedure with specific parameters, arguments and environment.
+        :parms: Symbols of parameters.
+        :body: Body of procedure.
+        :env: Context environment.
+        """
+        self.parms = parms
+        self.body = body
+        self.env = env
+    def __call__(self, *args):
+        """Call the procedure with specific args
+        :*args: Argument list.
+        :returns: The result of procedure.
+        """
+        evaluate(self.body, Env(self.parms, args, self.env))
 
 def init_global_env(env):
     """Initialize the global environment.
@@ -37,8 +66,6 @@ def init_global_env(env):
 
 global_env = init_global_env(Env())
 
-isa = isinstance
-
 def tostr(token):
     """Convert a token into form in lisp.
     :token: Token to be converted.
@@ -53,6 +80,8 @@ def tostr(token):
         return json.dumps(token)
     if isa(token, complex):
         return str(token).replace('j', 'i')[1:-1]
+    if isa(token, list):
+        return '('+' '.join(map(tostr, token))+')'
     return str(token)
 
 def yield_patterns():
@@ -124,12 +153,21 @@ def expand(parts):
         length = len(parts)
         if length == 3:
             return parts + [None]
-        require(parts, length == 4)
-        return [i for i in map(expand, parts)]
+        require(parts, length==4)
+        return [expand(i) for i in parts]
     if parts[0] == 'begin':
         if len(parts) == 1:
             return parts + [None]
         return [expand(i) for i in parts]
+    if parts[0] == 'lambda':
+        require(parts, len(parts)>=3)
+        parms = parts[1]
+        # body is a list even there's only one expression to be evaluated
+        body = parts[2:]
+        require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
+            or isa(parms, Symbol), 'illegal lambda argument list'))
+        body = ['begin'] + body
+        return ['define', parms, expand(body)]
     return parts
 
 def parse(tokenizer):
@@ -222,6 +260,9 @@ def evaluate(parts, env=global_env):
         if parts[0] == 'if':
             (_, cond, branch1, branch2) = parts
             parts = branch1 if evaluate(cond, env) else branch2
+        if parts[0] == 'lambda':
+            # get parameters and body of lambda
+            return Procedure(parts[1], parts[2], env)
         elif parts[0] == 'begin':
             for i in parts[1:-1]:
                 evaluate(i, env)
