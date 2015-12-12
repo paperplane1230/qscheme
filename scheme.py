@@ -1,6 +1,7 @@
 #!/usr/bin/env ipython3
 
 import sys
+import operator as op
 
 isa = isinstance
 
@@ -15,7 +16,6 @@ class Env(dict):
         :outer: The outer environment.
         """
         self.outer = outer
-        self.parms = parms
         if isa(parms, Symbol):
             self.update({parms:list(args)})
         else:
@@ -40,24 +40,17 @@ class Procedure:
         """Initialize a procedure with specific parameters, arguments and environment.
         :parms: Symbols of parameters.
         :body: Body of procedure.
-        :env: Context environment.
+        :env: Context environment to support closure.
         """
         self.parms = parms
         self.body = body
         self.env = env
-    def __call__(self, *args):
-        """Call the procedure with specific args
-        :*args: Argument list.
-        :returns: The result of procedure.
-        """
-        evaluate(self.body, Env(self.parms, args, self.env))
 
 def init_global_env(env):
     """Initialize the global environment.
     :env: The environment to be initialized.
     :returns: A new environment filled with builtin operations.
     """
-    import operator as op
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':op.not_,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
@@ -75,6 +68,8 @@ def tostr(token):
         return '#t'
     if token is False:
         return '#f'
+    if isa(token, Symbol):
+        return token
     if isa(token, str):
         import json
         return json.dumps(token)
@@ -167,8 +162,9 @@ def expand(parts):
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
         body = ['begin'] + body
-        return ['define', parms, expand(body)]
-    return parts
+        return ['lambda', parms, expand(body)]
+    # (proc args...)
+    return [expand(i) for i in parts]
 
 def parse(tokenizer):
     """Parse scheme statements.
@@ -231,19 +227,19 @@ def transform(token):
                 except ValueError:
                     return Symbol(token)
 
-def mathop(op):
+def mathop(func):
     """Judge whether operator is a math one.
-    :op: Operator to be judged.
+    :func: Operator to be judged.
     :returns: The situation.
     """
-    return op in ['+','-','*','/',]
+    return func in [op.add,op.sub,op.mul,op.truediv]
 
-def cmpop(op):
+def cmpop(func):
     """Judge whether operator is a comparison one.
-    :op: Operator to be judged.
+    :func: Operator to be judged.
     :returns: The situation.
     """
-    return op in ['=','<','<=','>','>=',]
+    return func in [op.eq,op.lt,op.le,op.gt,op.ge]
 
 def evaluate(parts, env=global_env):
     """Evaluate value of parts.
@@ -268,18 +264,22 @@ def evaluate(parts, env=global_env):
                 evaluate(i, env)
             parts = parts[-1]
         else:
-            op = parts.pop(0)
-            func = env.find(op)
+            # (proc args...)
             exprs = [evaluate(i, env) for i in parts]
-            if mathop(op):
+            func = exprs.pop(0)
+            if mathop(func):
                 import functools
                 return functools.reduce(func, exprs)
-            if cmpop(op):
+            if cmpop(func):
                 for i in range(len(exprs)-1):
                     if not func(exprs[i], exprs[i+1]):
                         return False
                 return True
-            return func(*exprs)
+            if isa(func, Procedure):
+                parts = func.body
+                env = Env(func.parms, exprs, func.env)
+            else:
+                raise SyntaxError("The first object not applicable.")
 
 def require(var, condition, msg='wrong length'):
     """Assert if condition isn't satisfied.
