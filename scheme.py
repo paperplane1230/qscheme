@@ -225,7 +225,7 @@ def transform(token):
                     import fractions
                     return fractions.Fraction(token)
                 except ValueError:
-                    return Symbol(token)
+                    return Symbol(token.lower())
 
 def mathop(func):
     """Judge whether operator is a math one.
