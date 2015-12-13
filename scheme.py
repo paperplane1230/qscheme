@@ -31,7 +31,7 @@ class Env(dict):
         if op in self:
             return self[op]
         if self.outer == None:
-            raise LookupError(op)
+            raise LookupError('unbound '+op)
         return self.outer.find(op)
 
 class Procedure:
@@ -116,9 +116,8 @@ class Tokenizer:
         """
         import re
         self.file = file
-        self.pattern = generate_pattern()
         self.line = ''
-        self.regex = re.compile(self.pattern)
+        self.regex = re.compile(generate_pattern())
     def next_token(self):
         """Get the next token.
         :returns: The next token.
@@ -129,7 +128,7 @@ class Tokenizer:
             if self.line == '':
                 return None
             token, self.line = self.regex.match(self.line).groups()
-            if token != '' and not token.startswith(';'):
+            if token != '':
                 return token
     def empty(self):
         """Judge whether there are more than one expressions in a line.
@@ -142,18 +141,23 @@ def expand(parts):
     :parts: List to be expanded.
     :returns: List expanded.
     """
-    if not isa(parts, list):
+    if not isa(parts, list) or len(parts) == 0:
         return parts
-    if parts[0] == 'if':
-        length = len(parts)
-        if length == 3:
-            return parts + [None]
-        require(parts, length==4)
-        return [expand(i) for i in parts]
-    if parts[0] == 'begin':
-        if len(parts) == 1:
-            return parts + [None]
-        return [expand(i) for i in parts]
+    if parts[0] == 'define':
+        if len(parts) == 2:
+            parts += [None]
+        require(parts, len(parts)>=3)
+        header = parts[1]
+        if isa(header, list) and header:
+            name = header[0]
+            parms = header[1:]
+            # (define (func parms...) body)
+            #   => (define func (lambda (parms...) body))
+            return expand(['define', name, ['lambda', parms]+parts[2:]])
+        require(parts, len(parts)==3)
+        require(parts, isa(header, Symbol), "can only define a symbol")
+        parts[2] = expand(parts[2])
+        return parts
     if parts[0] == 'lambda':
         require(parts, len(parts)>=3)
         parms = parts[1]
@@ -163,6 +167,14 @@ def expand(parts):
             or isa(parms, Symbol), 'illegal lambda argument list'))
         body = ['begin'] + body
         return ['lambda', parms, expand(body)]
+    # next branches share 'return' expression
+    if parts[0] == 'if':
+        if len(parts) == 3:
+            parts += [None]
+        require(parts, len(parts)==4)
+    elif parts[0] == 'begin':
+        if len(parts) == 1:
+            return parts + [None]
     # (proc args...)
     return [expand(i) for i in parts]
 
@@ -191,6 +203,8 @@ def parse(tokenizer):
     token = tokenizer.next_token()
     if token == None:
         return None
+    if token.startswith(';'):
+        return ';'
     return expand(read_ahead(token))
 
 def transform(token):
@@ -253,12 +267,15 @@ def evaluate(parts, env=global_env):
             return parts
         if len(parts) == 0:
             return ()
-        if parts[0] == 'if':
-            (_, cond, branch1, branch2) = parts
-            parts = branch1 if evaluate(cond, env) else branch2
+        if parts[0] == 'define':
+            env[parts[1]] = evaluate(parts[2], env)
+            return parts[1]
         if parts[0] == 'lambda':
             # get parameters and body of lambda
             return Procedure(parts[1], parts[2], env)
+        if parts[0] == 'if':
+            (_, cond, branch1, branch2) = parts
+            parts = branch1 if evaluate(cond, env) else branch2
         elif parts[0] == 'begin':
             for i in parts[1:-1]:
                 evaluate(i, env)
@@ -303,6 +320,8 @@ def repl():
             parts = parse(tokenizer)
             if parts is None:
                 return
+            if parts == ';':
+                continue
             print(tostr(evaluate(parts)))
         except KeyboardInterrupt:
             sys.stderr.write('\n')
