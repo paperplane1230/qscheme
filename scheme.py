@@ -167,6 +167,12 @@ def expand(parts):
             or isa(parms, Symbol), 'illegal lambda argument list'))
         body = ['begin'] + body
         return ['lambda', parms, expand(body)]
+    if parts[0] == 'set!':
+        require(parts, len(parts)==3)
+        symbol = parts[1]
+        require(parts, isa(symbol, Symbol), "can set! only a symbol")
+        parts[2] = expand(parts[2])
+        return parts
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
@@ -273,6 +279,14 @@ def evaluate(parts, env=global_env):
         if parts[0] == 'lambda':
             # get parameters and body of lambda
             return Procedure(parts[1], parts[2], env)
+        if parts[0] == 'set!':
+            (_, symbol, value) = parts
+            try:
+                oldVal = env.find(symbol)
+            except KeyError as e:
+                raise e
+            env[symbol] = evaluate(value, env)
+            return oldVal
         if parts[0] == 'if':
             (_, cond, branch1, branch2) = parts
             parts = branch1 if evaluate(cond, env) else branch2
