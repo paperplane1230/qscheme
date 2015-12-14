@@ -144,9 +144,12 @@ def expand(parts):
     """
     if not isa(parts, list) or len(parts) == 0:
         return parts
+    if parts[0] == 'quote':
+        require(parts, len(parts)==2)
+        return parts
     if parts[0] == 'define':
         if len(parts) == 2:
-            parts += [None]
+            parts.append(None)
         require(parts, len(parts)>=3)
         header = parts[1]
         if isa(header, list) and header:
@@ -166,7 +169,7 @@ def expand(parts):
         body = parts[2:]
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
-        body = ['begin'] + body
+        body.insert(0, 'begin')
         return ['lambda', parms, expand(body)]
     if parts[0] == 'set!':
         require(parts, len(parts)==3)
@@ -177,7 +180,7 @@ def expand(parts):
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
-            parts += [None]
+            parts.append(None)
         require(parts, len(parts)==4)
     elif parts[0] == 'begin':
         if len(parts) == 1:
@@ -185,7 +188,10 @@ def expand(parts):
     # (proc args...)
     return [expand(i) for i in parts]
 
-quotes = {"'":'quote', '`':'quasiquote', ',':'unquote',',@':'unquote-splicing'}
+quotes = {
+        "'":Symbol('quote'), '`':Symbol('quasiquote'), ',':Symbol('unquote'),
+        ',@':Symbol('unquote-splicing'),
+}
 
 def parse(tokenizer):
     """Parse scheme statements.
@@ -197,6 +203,8 @@ def parse(tokenizer):
         :token: The current token in stream.
         :returns: Members of an operation.
         """
+        if token in quotes:
+            return [quotes[token], parse(tokenizer)]
         if token == '(':
             memebers = []
             while True:
@@ -290,6 +298,8 @@ def evaluate(parts, env=global_env):
             return parts
         if len(parts) == 0:
             return ()
+        if parts[0] == 'quote':
+            return parts[1]
         if parts[0] == 'define':
             env[parts[1]] = evaluate(parts[2], env)
             return parts[1]
