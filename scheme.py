@@ -2,6 +2,7 @@
 
 import sys
 import operator as op
+import fractions
 
 isa = isinstance
 
@@ -30,7 +31,7 @@ class Env(dict):
         """
         if op in self:
             return self[op]
-        if self.outer == None:
+        if self.outer is None:
             raise LookupError('unbound '+op)
         return self.outer.find(op)
 
@@ -184,6 +185,8 @@ def expand(parts):
     # (proc args...)
     return [expand(i) for i in parts]
 
+quotes = {"'":'quote', '`':'quasiquote', ',':'unquote',',@':'unquote-splicing'}
+
 def parse(tokenizer):
     """Parse scheme statements.
     :tokenizer: Tokenizer for parser to parse.
@@ -201,13 +204,11 @@ def parse(tokenizer):
                 if token == ')':
                     return memebers
                 memebers.append(read_ahead(token))
-        elif token == ')':
-            raise SyntaxError('unexpected )')
         else:
             return transform(token)
     # body of parse
     token = tokenizer.next_token()
-    if token == None:
+    if token is None:
         return None
     if token.startswith(';'):
         return ';'
@@ -242,7 +243,6 @@ def transform(token):
                 return complex(token.replace('i', 'j'))
             except ValueError:
                 try:
-                    import fractions
                     return fractions.Fraction(token)
                 except ValueError:
                     return Symbol(token.lower())
@@ -260,6 +260,23 @@ def cmpop(func):
     :returns: The situation.
     """
     return func in [op.eq,op.lt,op.le,op.gt,op.ge]
+
+def do_math_op(func, exprs):
+    """Deal with basic math operator.
+    :func: Operator to be dealt.
+    :exprs: Parameters for the operator.
+    :returns: Result of operation.
+    """
+    import functools
+    if func is op.sub and len(exprs) == 1:
+        exprs.insert(0, 0)
+    if func is op.truediv and len(exprs) == 1:
+        exprs.insert(0, 1)
+    if func is op.truediv:
+        molecular = exprs.pop(0)
+        sum = functools.reduce(op.mul, exprs)
+        return fractions.Fraction(molecular, sum)
+    return functools.reduce(func, exprs)
 
 def evaluate(parts, env=global_env):
     """Evaluate value of parts.
@@ -299,8 +316,7 @@ def evaluate(parts, env=global_env):
             exprs = [evaluate(i, env) for i in parts]
             func = exprs.pop(0)
             if mathop(func):
-                import functools
-                return functools.reduce(func, exprs)
+                return do_math_op(func, exprs)
             if cmpop(func):
                 for i in range(len(exprs)-1):
                     if not func(exprs[i], exprs[i+1]):
@@ -310,7 +326,7 @@ def evaluate(parts, env=global_env):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
             else:
-                raise SyntaxError("The first object not applicable.")
+                require(parts[0], False, 'is not applicable')
 
 def require(var, condition, msg='wrong length'):
     """Assert if condition isn't satisfied.
@@ -334,7 +350,7 @@ def repl():
             parts = parse(tokenizer)
             if parts is None:
                 return
-            if parts == ';':
+            if parts == ';' or parts == ')':
                 continue
             print(tostr(evaluate(parts)))
         except KeyboardInterrupt:
