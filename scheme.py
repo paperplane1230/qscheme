@@ -44,6 +44,13 @@ class Pair:
         """Set the second element."""
         self.__second = value
 
+def _list(exprs):
+    """Construct a list with method cons."""
+    result = cons(exprs[-1], [])
+    for i in reversed(range(len(exprs)-1)):
+        result = cons(exprs[i], result)
+    return result
+
 def car(pair):
     """Return the first element of the pair."""
     return pair.car
@@ -118,6 +125,7 @@ def __init_global_env(env):
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq, 'length':len,
         'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
+        'list':_list,
     })
     return env
 
@@ -314,6 +322,13 @@ def _do_math_op(func, exprs):
         return fractions.Fraction(molecular, sum)
     return functools.reduce(func, exprs)
 
+def _do_cmp_op(func, exprs):
+    """Do comparable operation."""
+    for i in range(len(exprs)-1):
+        if not func(exprs[i], exprs[i+1]):
+            return False
+    return True
+
 def evaluate(parts, env=global_env):
     """Evaluate value of parts."""
     while True:
@@ -354,10 +369,9 @@ def evaluate(parts, env=global_env):
             if _mathop(func):
                 return _do_math_op(func, exprs)
             if _cmpop(func):
-                for i in range(len(exprs)-1):
-                    if not func(exprs[i], exprs[i+1]):
-                        return False
-                return True
+                return _do_cmp_op(func, exprs)
+            if func is _list:
+                return _list(exprs)
             if isa(func, Procedure):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
