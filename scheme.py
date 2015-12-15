@@ -20,26 +20,47 @@ class Pair:
         """Remove outer boundary of second part when printing."""
         if isa(symbol, Pair):
             return ' ' + str(symbol)[1:-1]
+        # deal with situation where cdr is '()
+        if self.__second == []:
+            return ''
         return ' . ' + tostr(symbol)
     def __str__(self):
         """Format for printing."""
         return ''.join(['(', tostr(self.__first), self.__rm_outer(self.__second), ')'])
+    @property
     def car(self):
         """Return the first part."""
         return self.__first
+    @property
     def cdr(self):
         """Return the second part."""
         return self.__second
+    @car.setter
+    def car(self, value):
+        """Set the first element."""
+        self.__first = value
+    @cdr.setter
+    def cdr(self, value):
+        """Set the second element."""
+        self.__second = value
 
 def car(pair):
     """Return the first element of the pair."""
-    require(pair, isa(pair, Pair), 'the parameter of car must be a pair')
-    return pair.car()
+    return pair.car
 
 def cdr(pair):
     """Return the second element of the pair."""
-    require(pair, isa(pair, Pair), 'the parameter of cdr must be a pair')
-    return pair.cdr()
+    return pair.cdr
+
+def set_car(pair, val):
+    """Set car of the pair."""
+    pair.car = val
+    return None
+
+def set_cdr(pair, val):
+    """Set cdr of the pair."""
+    pair.cdr = val
+    return None
 
 def cons(first, second):
     """Construct a Pair."""
@@ -95,8 +116,8 @@ def __init_global_env(env):
     """Initialize the global environment."""
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
-        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
-        'length':len, 'cons':cons, 'car':car, 'cdr':cdr,
+        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq, 'length':len,
+        'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
     })
     return env
 
