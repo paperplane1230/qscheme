@@ -47,13 +47,22 @@ class Procedure:
         self.body = body
         self.env = env
 
+def not_op(target):
+    """Implementation of operator not.
+    :target: Target to be judged.
+    :returns: The situation.
+    """
+    if not isa(target, bool):
+        return False
+    return not target
+
 def init_global_env(env):
     """Initialize the global environment.
     :env: The environment to be initialized.
     :returns: A new environment filled with builtin operations.
     """
     env.update({
-        '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':op.not_,
+        '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
     })
     return env
@@ -301,8 +310,9 @@ def evaluate(parts, env=global_env):
         if parts[0] == 'quote':
             return parts[1]
         if parts[0] == 'define':
-            env[parts[1]] = evaluate(parts[2], env)
-            return parts[1]
+            (_, symbol, val) = parts
+            env[symbol] = evaluate(val, env)
+            return symbol
         if parts[0] == 'lambda':
             # get parameters and body of lambda
             return Procedure(parts[1], parts[2], env)
@@ -336,7 +346,7 @@ def evaluate(parts, env=global_env):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
             else:
-                require(parts[0], False, 'is not applicable')
+                return func(*exprs)
 
 def require(var, condition, msg='wrong length'):
     """Assert if condition isn't satisfied.
