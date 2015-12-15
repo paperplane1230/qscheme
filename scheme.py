@@ -13,10 +13,7 @@ class Symbol(str):
 class Pair:
     """Class for pair in scheme(created by function cons)."""
     def __init__(self, first, second):
-        """Construct a pair with given data.
-        :first: The first member.
-        :second: The second member.
-        """
+        """Construct a pair with given data."""
         self.__first = first
         self.__second = second
     def __rm_outer(self, symbol):
@@ -31,11 +28,18 @@ class Pair:
         :returns: Format to be printed.
         """
         return ''.join(['(', tostr(self.__first), self.__rm_outer(self.__second), ')'])
+    def car(self):
+        return self.__first
+
+def car(pair):
+    """Return the first element of the pair.
+    :returns: The first element of the pair.
+    """
+    require(pair, isa(pair, Pair), 'the parameter of car must be a pair')
+    return pair.car()
 
 def cons(first, second):
     """Construct a Pair.
-    :first: The first element in the pair.
-    :second: The second element in the pair.
     :returns: A pair constructed with specific parameters.
     """
     return Pair(first, second)
@@ -43,9 +47,7 @@ def cons(first, second):
 class Env(dict):
     """Context Environment."""
     def __init__(self, parms=(), args=(), outer=None):
-        """Initialize the environment with specific parameters.
-        :outer: The outer environment.
-        """
+        """Initialize the environment with specific parameters."""
         self.__outer = outer
         if isa(parms, Symbol):
             self.update({parms:list(args)})
@@ -56,7 +58,6 @@ class Env(dict):
             self.update(list(zip(parms, args)))
     def find(self, op):
         """Find operator in the environment.
-        :op: Operator to be found.
         :returns: Specific operator.
         """
         if op in self:
@@ -68,18 +69,13 @@ class Env(dict):
 class Procedure:
     """Class for procedure."""
     def __init__(self, parms, body, env):
-        """Initialize a procedure with specific parameters, arguments and environment.
-        :parms: Symbols of parameters.
-        :body: Body of procedure.
-        :env: Context environment to support closure.
-        """
+        """Initialize a procedure with specific parameters, arguments and environment."""
         self.__parms = parms
         self.__body = body
         self.__env = env
 
 def not_op(target):
     """Implementation of operator not.
-    :target: Target to be judged.
     :returns: The situation.
     """
     if not isa(target, bool):
@@ -88,13 +84,12 @@ def not_op(target):
 
 def __init_global_env(env):
     """Initialize the global environment.
-    :env: The environment to be initialized.
     :returns: A new environment filled with builtin operations.
     """
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
-        'length':len, 'cons':cons,
+        'length':len, 'cons':cons, 'car':car,
     })
     return env
 
@@ -102,7 +97,6 @@ global_env = __init_global_env(Env())
 
 def tostr(token):
     """Convert a token into form in lisp.
-    :token: Token to be converted.
     :returns: Token after converting.
     """
     if token is True:
@@ -123,9 +117,7 @@ def tostr(token):
 class Tokenizer:
     """Tokenizer to read tokens."""
     def __init__(self, file=sys.stdin):
-        """Bind a file stream to read.
-        :file: File to be bound for reading tokens.
-        """
+        """Bind a file stream to read."""
         import re
         self.__file = file
         self.__line = ''
@@ -177,7 +169,6 @@ class Tokenizer:
 
 def _expand(parts):
     """Do expansion for list to be evaluated.
-    :parts: List to be expanded.
     :returns: List expanded.
     """
     if not isa(parts, list) or len(parts) == 0:
@@ -233,12 +224,10 @@ quotes = {
 
 def parse(tokenizer):
     """Parse scheme statements.
-    :tokenizer: Tokenizer for parser to parse.
     :returns: List of members of an operation or None if encountering an EOF.
     """
     def _read_ahead(token):
         """Read ahead to construct an operation.
-        :token: The current token in stream.
         :returns: Members of an operation.
         """
         if token in quotes:
@@ -262,7 +251,6 @@ def parse(tokenizer):
 
 def _transform(token):
     """Transform token into proper form.
-    :token: To be transformed.
     :returns: Token after transformation.
     """
     if token == '#t':
@@ -295,22 +283,18 @@ def _transform(token):
 
 def _mathop(func):
     """Judge whether operator is a math one.
-    :func: Operator to be judged.
     :returns: The situation.
     """
     return func in [op.add,op.sub,op.mul,op.truediv]
 
 def _cmpop(func):
     """Judge whether operator is a comparison one.
-    :func: Operator to be judged.
     :returns: The situation.
     """
     return func in [op.eq,op.lt,op.le,op.gt,op.ge]
 
 def _do_math_op(func, exprs):
     """Deal with basic math operator.
-    :func: Operator to be dealt.
-    :exprs: Parameters for the operator.
     :returns: Result of operation.
     """
     import functools
@@ -326,7 +310,6 @@ def _do_math_op(func, exprs):
 
 def evaluate(parts, env=global_env):
     """Evaluate value of parts.
-    :parts: Parts to be evaluated.
     :returns: Value of parts.
     """
     while True:
@@ -378,17 +361,12 @@ def evaluate(parts, env=global_env):
                 return func(*exprs)
 
 def require(var, condition, msg='wrong length'):
-    """Assert if condition isn't satisfied.
-    :var: Variable related.
-    :condition: Condition to be satisfied.
-    :msg: The message to be shown.
-    """
+    """Assert if condition isn't satisfied."""
     if not condition:
         raise SyntaxError(tostr(var)+': '+msg)
 
 def repl():
-    """Read-evaluate-print-loop.
-    """
+    """Read-evaluate-print-loop."""
     prompt = '> '
     tokenizer = Tokenizer()
     while True:
