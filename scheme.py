@@ -185,7 +185,7 @@ class Tokenizer:
         """
         return self.__line == ''
 
-def _expand(parts):
+def _expand(parts, top_env=False):
     """Do expansion for list to be evaluated.
     :returns: List expanded.
     """
@@ -195,6 +195,8 @@ def _expand(parts):
         require(parts, len(parts)==2)
         return parts
     if parts[0] == 'define':
+        if not top_env:
+            raise SyntaxError("can't bind name in null syntactic environment")
         if len(parts) == 2:
             parts.append(None)
         require(parts, len(parts)>=3)
@@ -265,7 +267,7 @@ def parse(tokenizer):
         return None
     if token.startswith(';'):
         return ';'
-    return _expand(_read_ahead(token))
+    return _expand(_read_ahead(token), True)
 
 def _transform(token):
     """Transform token into proper form.
