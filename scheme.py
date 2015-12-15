@@ -44,12 +44,25 @@ class Pair:
         """Set the second element."""
         self.__second = value
 
-def _list(exprs):
-    """Construct a list with method cons."""
-    result = cons(exprs[-1], [])
-    for i in reversed(range(len(exprs)-1)):
-        result = cons(exprs[i], result)
-    return result
+class List:
+    """Class for list."""
+    def __init__(self, members):
+        """Construct a list in scheme with members in a list."""
+        self.__members = members
+        self.__cons = self.__list(self.__members)
+    def __list(self, exprs):
+        """Construct a list with method cons."""
+        result = cons(exprs[-1], [])
+        for i in reversed(range(len(exprs)-1)):
+            result = cons(exprs[i], result)
+        return result
+    def __str__(self):
+        """Format for printing."""
+        return str(self.__cons)
+
+def scheme_list(members):
+    """Construct a scheme list."""
+    return List(members)
 
 def car(pair):
     """Return the first element of the pair."""
@@ -125,7 +138,7 @@ def __init_global_env(env):
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq, 'length':len,
         'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
-        'list':_list,
+        'list':scheme_list,
     })
     return env
 
@@ -370,8 +383,8 @@ def evaluate(parts, env=global_env):
                 return _do_math_op(func, exprs)
             if _cmpop(func):
                 return _do_cmp_op(func, exprs)
-            if func is _list:
-                return _list(exprs)
+            if func is scheme_list:
+                return scheme_list(exprs)
             if isa(func, Procedure):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
