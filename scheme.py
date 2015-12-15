@@ -17,31 +17,32 @@ class Pair:
         self.__first = first
         self.__second = second
     def __rm_outer(self, symbol):
-        """Remove outer boundary of second part when printing.
-        :returns: Format with outer boundary removed.
-        """
+        """Remove outer boundary of second part when printing."""
         if isa(symbol, Pair):
             return ' ' + str(symbol)[1:-1]
         return ' . ' + tostr(symbol)
     def __str__(self):
-        """Format for printing.
-        :returns: Format to be printed.
-        """
+        """Format for printing."""
         return ''.join(['(', tostr(self.__first), self.__rm_outer(self.__second), ')'])
     def car(self):
+        """Return the first part."""
         return self.__first
+    def cdr(self):
+        """Return the second part."""
+        return self.__second
 
 def car(pair):
-    """Return the first element of the pair.
-    :returns: The first element of the pair.
-    """
+    """Return the first element of the pair."""
     require(pair, isa(pair, Pair), 'the parameter of car must be a pair')
     return pair.car()
 
+def cdr(pair):
+    """Return the second element of the pair."""
+    require(pair, isa(pair, Pair), 'the parameter of cdr must be a pair')
+    return pair.cdr()
+
 def cons(first, second):
-    """Construct a Pair.
-    :returns: A pair constructed with specific parameters.
-    """
+    """Construct a Pair."""
     return Pair(first, second)
 
 class Env(dict):
@@ -57,9 +58,7 @@ class Env(dict):
                         .format(tostr(parms), tostr(args)))
             self.update(list(zip(parms, args)))
     def find(self, op):
-        """Find operator in the environment.
-        :returns: Specific operator.
-        """
+        """Find operator in the environment."""
         if op in self:
             return self[op]
         if self.__outer is None:
@@ -75,48 +74,36 @@ class Procedure:
         self.__env = env
     @property
     def env(self):
-        """Get context environment.
-        :returns: Context environment of procedure.
-        """
+        """Get context environment."""
         return self.__env
     @property
     def body(self):
-        """Get body.
-        :returns: Body of procedure.
-        """
+        """Get body."""
         return self.__body
     @property
     def parms(self):
-        """Get parameters.
-        :returns: Parameters of procedure.
-        """
+        """Get parameters."""
         return self.__parms
 
 def not_op(target):
-    """Implementation of operator not.
-    :returns: The situation.
-    """
+    """Implementation of operator not."""
     if not isa(target, bool):
         return False
     return not target
 
 def __init_global_env(env):
-    """Initialize the global environment.
-    :returns: A new environment filled with builtin operations.
-    """
+    """Initialize the global environment."""
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
-        'length':len, 'cons':cons, 'car':car,
+        'length':len, 'cons':cons, 'car':car, 'cdr':cdr,
     })
     return env
 
 global_env = __init_global_env(Env())
 
 def tostr(token):
-    """Convert a token into form in lisp.
-    :returns: Token after converting.
-    """
+    """Convert a token into form in lisp."""
     if token is True:
         return '#t'
     if token is False:
@@ -141,9 +128,7 @@ class Tokenizer:
         self.__line = ''
         self.__regex = re.compile(self.__generate_pattern())
     def __yield_patterns(self):
-        """Yield patterns of regular expressions.
-        :returns: Strings corresponds to each conditions.
-        """
+        """Yield patterns of regular expressions."""
         # comment
         yield r""";.*"""
         # string
@@ -155,9 +140,7 @@ class Tokenizer:
         # normal
         yield r"""[^\s('"`,;)]*"""
     def __generate_pattern(self):
-        """Generate pattern for scheme.
-        :returns: A pattern for regular expression to parse.
-        """
+        """Generate pattern for scheme."""
         result = []
         # space
         result.append(r"""\s*""")
@@ -168,9 +151,7 @@ class Tokenizer:
         result.append(r"""(.*)""")
         return ''.join(result)
     def next_token(self):
-        """Get the next token.
-        :returns: The next token.
-        """
+        """Get the next token."""
         while True:
             if self.__line == '':
                 self.__line = self.__file.readline()
@@ -180,15 +161,11 @@ class Tokenizer:
             if token != '':
                 return token
     def empty(self):
-        """Judge whether there are more than one expressions in a line.
-        :returns: The situation.
-        """
+        """Judge whether there are more than one expressions in a line."""
         return self.__line == ''
 
 def _expand(parts, top_env=False):
-    """Do expansion for list to be evaluated.
-    :returns: List expanded.
-    """
+    """Do expansion for list to be evaluated."""
     if not isa(parts, list) or len(parts) == 0:
         return parts
     if parts[0] == 'quote':
@@ -243,13 +220,9 @@ quotes = {
 }
 
 def parse(tokenizer):
-    """Parse scheme statements.
-    :returns: List of members of an operation or None if encountering an EOF.
-    """
+    """Parse scheme statements."""
     def _read_ahead(token):
-        """Read ahead to construct an operation.
-        :returns: Members of an operation.
-        """
+        """Read ahead to construct an operation."""
         if token in quotes:
             return [quotes[token], parse(tokenizer)]
         if token == '(':
@@ -270,9 +243,7 @@ def parse(tokenizer):
     return _expand(_read_ahead(token), True)
 
 def _transform(token):
-    """Transform token into proper form.
-    :returns: Token after transformation.
-    """
+    """Transform token into proper form."""
     if token == '#t':
         return True
     if token == '#f':
@@ -302,21 +273,15 @@ def _transform(token):
                     return Symbol(token.lower())
 
 def _mathop(func):
-    """Judge whether operator is a math one.
-    :returns: The situation.
-    """
+    """Judge whether operator is a math one."""
     return func in [op.add,op.sub,op.mul,op.truediv]
 
 def _cmpop(func):
-    """Judge whether operator is a comparison one.
-    :returns: The situation.
-    """
+    """Judge whether operator is a comparison one."""
     return func in [op.eq,op.lt,op.le,op.gt,op.ge]
 
 def _do_math_op(func, exprs):
-    """Deal with basic math operator.
-    :returns: Result of operation.
-    """
+    """Deal with basic math operator."""
     import functools
     if func is op.sub and len(exprs) == 1:
         exprs.insert(0, 0)
@@ -329,9 +294,7 @@ def _do_math_op(func, exprs):
     return functools.reduce(func, exprs)
 
 def evaluate(parts, env=global_env):
-    """Evaluate value of parts.
-    :returns: Value of parts.
-    """
+    """Evaluate value of parts."""
     while True:
         if isa(parts, Symbol):
             return env.find(parts)
