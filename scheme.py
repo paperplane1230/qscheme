@@ -10,13 +10,43 @@ class Symbol(str):
     """Class for symbol."""
     pass
 
+class Pair:
+    """Class for pair in scheme(created by function cons)."""
+    def __init__(self, first, second):
+        """Construct a pair with given data.
+        :first: The first member.
+        :second: The second member.
+        """
+        self.__first = first
+        self.__second = second
+    def __rm_outer(self, symbol):
+        """Remove outer boundary of second part when printing.
+        :returns: Format with outer boundary removed.
+        """
+        if isa(symbol, Pair):
+            return ' ' + str(symbol)[1:-1]
+        return ' . ' + tostr(symbol)
+    def __str__(self):
+        """Format for printing.
+        :returns: Format to be printed.
+        """
+        return ''.join(['(', tostr(self.__first), self.__rm_outer(self.__second), ')'])
+
+def cons(first, second):
+    """Construct a Pair.
+    :first: The first element in the pair.
+    :second: The second element in the pair.
+    :returns: A pair constructed with specific parameters.
+    """
+    return Pair(first, second)
+
 class Env(dict):
     """Context Environment."""
     def __init__(self, parms=(), args=(), outer=None):
         """Initialize the environment with specific parameters.
         :outer: The outer environment.
         """
-        self.outer = outer
+        self.__outer = outer
         if isa(parms, Symbol):
             self.update({parms:list(args)})
         else:
@@ -31,9 +61,9 @@ class Env(dict):
         """
         if op in self:
             return self[op]
-        if self.outer is None:
+        if self.__outer is None:
             raise LookupError('unbound '+op)
-        return self.outer.find(op)
+        return self.__outer.find(op)
 
 class Procedure:
     """Class for procedure."""
@@ -43,9 +73,9 @@ class Procedure:
         :body: Body of procedure.
         :env: Context environment to support closure.
         """
-        self.parms = parms
-        self.body = body
-        self.env = env
+        self.__parms = parms
+        self.__body = body
+        self.__env = env
 
 def not_op(target):
     """Implementation of operator not.
@@ -56,7 +86,7 @@ def not_op(target):
         return False
     return not target
 
-def init_global_env(env):
+def __init_global_env(env):
     """Initialize the global environment.
     :env: The environment to be initialized.
     :returns: A new environment filled with builtin operations.
@@ -64,10 +94,11 @@ def init_global_env(env):
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq,
+        'length':len, 'cons':cons,
     })
     return env
 
-global_env = init_global_env(Env())
+global_env = __init_global_env(Env())
 
 def tostr(token):
     """Convert a token into form in lisp.
@@ -86,37 +117,8 @@ def tostr(token):
     if isa(token, complex):
         return str(token).replace('j', 'i')[1:-1]
     if isa(token, list):
-        return '('+' '.join(map(tostr, token))+')'
+        return '(' + ' '.join(map(tostr, token)) + ')'
     return str(token)
-
-def yield_patterns():
-    """Yield patterns of regular expressions.
-    :returns: Strings corresponds to each conditions.
-    """
-    # comment
-    yield r""";.*"""
-    # string
-    yield r'"(?:\\.|[^\\"])*"'
-    # unquote splicing
-    yield r""",@"""
-    # special
-    yield r"""[('`,)]"""
-    # normal
-    yield r"""[^\s('"`,;)]*"""
-
-def generate_pattern():
-    """Generate pattern for scheme.
-    :returns: A pattern for regular expression to parse.
-    """
-    result = []
-    # space
-    result.append(r"""\s*""")
-    result.append('(')
-    result.append('|'.join(yield_patterns()))
-    result.append(')')
-    # remaining
-    result.append(r"""(.*)""")
-    return ''.join(result)
 
 class Tokenizer:
     """Tokenizer to read tokens."""
@@ -125,28 +127,55 @@ class Tokenizer:
         :file: File to be bound for reading tokens.
         """
         import re
-        self.file = file
-        self.line = ''
-        self.regex = re.compile(generate_pattern())
+        self.__file = file
+        self.__line = ''
+        self.__regex = re.compile(self.__generate_pattern())
+    def __yield_patterns(self):
+        """Yield patterns of regular expressions.
+        :returns: Strings corresponds to each conditions.
+        """
+        # comment
+        yield r""";.*"""
+        # string
+        yield r'"(?:\\.|[^\\"])*"'
+        # unquote splicing
+        yield r""",@"""
+        # special
+        yield r"""[('`,)]"""
+        # normal
+        yield r"""[^\s('"`,;)]*"""
+    def __generate_pattern(self):
+        """Generate pattern for scheme.
+        :returns: A pattern for regular expression to parse.
+        """
+        result = []
+        # space
+        result.append(r"""\s*""")
+        result.append('(')
+        result.append('|'.join(self.__yield_patterns()))
+        result.append(')')
+        # remaining
+        result.append(r"""(.*)""")
+        return ''.join(result)
     def next_token(self):
         """Get the next token.
         :returns: The next token.
         """
         while True:
-            if self.line == '':
-                self.line = self.file.readline()
-            if self.line == '':
+            if self.__line == '':
+                self.__line = self.__file.readline()
+            if self.__line == '':
                 return None
-            token, self.line = self.regex.match(self.line).groups()
+            token, self.__line = self.__regex.match(self.__line).groups()
             if token != '':
                 return token
     def empty(self):
         """Judge whether there are more than one expressions in a line.
         :returns: The situation.
         """
-        return self.line == ''
+        return self.__line == ''
 
-def expand(parts):
+def _expand(parts):
     """Do expansion for list to be evaluated.
     :parts: List to be expanded.
     :returns: List expanded.
@@ -166,10 +195,10 @@ def expand(parts):
             parms = header[1:]
             # (define (func parms...) body)
             #   => (define func (lambda (parms...) body))
-            return expand(['define', name, ['lambda', parms]+parts[2:]])
+            return _expand(['define', name, ['lambda', parms]+parts[2:]])
         require(parts, len(parts)==3)
         require(parts, isa(header, Symbol), "can only define a symbol")
-        parts[2] = expand(parts[2])
+        parts[2] = _expand(parts[2])
         return parts
     if parts[0] == 'lambda':
         require(parts, len(parts)>=3)
@@ -179,12 +208,12 @@ def expand(parts):
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
         body.insert(0, 'begin')
-        return ['lambda', parms, expand(body)]
+        return ['lambda', parms, _expand(body)]
     if parts[0] == 'set!':
         require(parts, len(parts)==3)
         symbol = parts[1]
         require(parts, isa(symbol, Symbol), "can set! only a symbol")
-        parts[2] = expand(parts[2])
+        parts[2] = _expand(parts[2])
         return parts
     # next branches share 'return' expression
     if parts[0] == 'if':
@@ -195,7 +224,7 @@ def expand(parts):
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
-    return [expand(i) for i in parts]
+    return [_expand(i) for i in parts]
 
 quotes = {
         "'":Symbol('quote'), '`':Symbol('quasiquote'), ',':Symbol('unquote'),
@@ -207,7 +236,7 @@ def parse(tokenizer):
     :tokenizer: Tokenizer for parser to parse.
     :returns: List of members of an operation or None if encountering an EOF.
     """
-    def read_ahead(token):
+    def _read_ahead(token):
         """Read ahead to construct an operation.
         :token: The current token in stream.
         :returns: Members of an operation.
@@ -220,18 +249,18 @@ def parse(tokenizer):
                 token = tokenizer.next_token()
                 if token == ')':
                     return memebers
-                memebers.append(read_ahead(token))
+                memebers.append(_read_ahead(token))
         else:
-            return transform(token)
+            return _transform(token)
     # body of parse
     token = tokenizer.next_token()
     if token is None:
         return None
     if token.startswith(';'):
         return ';'
-    return expand(read_ahead(token))
+    return _expand(_read_ahead(token))
 
-def transform(token):
+def _transform(token):
     """Transform token into proper form.
     :token: To be transformed.
     :returns: Token after transformation.
@@ -264,21 +293,21 @@ def transform(token):
                 except ValueError:
                     return Symbol(token.lower())
 
-def mathop(func):
+def _mathop(func):
     """Judge whether operator is a math one.
     :func: Operator to be judged.
     :returns: The situation.
     """
     return func in [op.add,op.sub,op.mul,op.truediv]
 
-def cmpop(func):
+def _cmpop(func):
     """Judge whether operator is a comparison one.
     :func: Operator to be judged.
     :returns: The situation.
     """
     return func in [op.eq,op.lt,op.le,op.gt,op.ge]
 
-def do_math_op(func, exprs):
+def _do_math_op(func, exprs):
     """Deal with basic math operator.
     :func: Operator to be dealt.
     :exprs: Parameters for the operator.
@@ -335,9 +364,9 @@ def evaluate(parts, env=global_env):
             # (proc args...)
             exprs = [evaluate(i, env) for i in parts]
             func = exprs.pop(0)
-            if mathop(func):
-                return do_math_op(func, exprs)
-            if cmpop(func):
+            if _mathop(func):
+                return _do_math_op(func, exprs)
+            if _cmpop(func):
                 for i in range(len(exprs)-1):
                     if not func(exprs[i], exprs[i+1]):
                         return False
