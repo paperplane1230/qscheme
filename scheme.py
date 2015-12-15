@@ -73,6 +73,24 @@ class Procedure:
         self.__parms = parms
         self.__body = body
         self.__env = env
+    @property
+    def env(self):
+        """Get context environment.
+        :returns: Context environment of procedure.
+        """
+        return self.__env
+    @property
+    def body(self):
+        """Get body.
+        :returns: Body of procedure.
+        """
+        return self.__body
+    @property
+    def parms(self):
+        """Get parameters.
+        :returns: Parameters of procedure.
+        """
+        return self.__parms
 
 def not_op(target):
     """Implementation of operator not.
