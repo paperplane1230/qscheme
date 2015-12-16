@@ -45,19 +45,23 @@ class Procedure:
         """Get parameters."""
         return self.__parms
 
-def __init_global_env(env):
+def _init_global_env(env):
     """Initialize the global environment."""
+    import math
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
-        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':ref_eq, 'length':len,
-        'cons':Pair, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
-        'boolean?':is_bool, 'integer?':is_int, 'rational?':is_rational,
+        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.is_, 'length':len,
+        'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
+        'boolean?':lambda x: isa(x, bool), 'integer?':is_int, 'rational?':is_rational,
         'real?':is_rational,    # it seems in scheme rational? equals real?
-        'number?':is_number, 'null?':is_null, 'equal?':op.eq,
+        'number?':is_number, 'null?':lambda x: x==[], 'equal?':op.eq,
+        'string?':lambda x: isa(x,str), 'expt':math.pow,
+        'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
+        'number->string':num2str,'string->number':str2num,
     })
     return env
 
-global_env = __init_global_env(Env())
+global_env = _init_global_env(Env())
 
 def _expand(parts, top_env=False):
     """Do expansion for list to be evaluated."""
@@ -69,7 +73,7 @@ def _expand(parts, top_env=False):
     if parts[0] == 'define':
         if not top_env:
             raise SyntaxError("can't bind name in null syntactic environment")
-        if len(parts) == 2:
+        if len(parts) == 2 and not isa(parts[1], list):
             parts.append(None)
         require(parts, len(parts)>=3)
         header = parts[1]
@@ -128,7 +132,7 @@ def parse(tokenizer):
                     return memebers
                 memebers.append(_read_ahead(token))
         else:
-            return _transform(token)
+            return transform(token)
     # body of parse
     token = tokenizer.next_token()
     if token is None:
@@ -137,43 +141,13 @@ def parse(tokenizer):
         return ';'
     return _expand(_read_ahead(token), True)
 
-def _transform(token):
-    """Transform token into proper form."""
-    if token == '#t':
-        return True
-    if token == '#f':
-        return False
-    if token[0] == '"':
-        return bytes(token[1:-1], "utf-8").decode('unicode-escape')
-    if token.startswith('#b'):
-        return int(token[2:], 2)
-    if token.startswith('#o'):
-        return int(token[2:], 8)
-    if token.startswith('#d'):
-        return int(token[2:])
-    if token.startswith('#x'):
-        return int(token[2:], 16)
-    try:
-        return int(token)
-    except ValueError:
-        try:
-            return float(token)
-        except ValueError:
-            try:
-                return complex(token.replace('i', 'j'))
-            except ValueError:
-                try:
-                    return fractions.Fraction(token)
-                except ValueError:
-                    return Symbol(token.lower())
-
 def _mathop(func):
     """Judge whether operator is a math one."""
     return func in [op.add,op.sub,op.mul,op.truediv]
 
 def _cmpop(func):
     """Judge whether operator is a comparison one."""
-    return func in [ref_eq,op.lt,op.le,op.gt,op.ge]
+    return func in [op.is_,op.lt,op.le,op.gt,op.ge]
 
 def _do_math_op(func, exprs):
     """Deal with basic math operator."""
@@ -236,13 +210,23 @@ def evaluate(parts, env=global_env):
                 return _do_math_op(func, exprs)
             if _cmpop(func):
                 return _do_cmp_op(func, exprs)
-            # if func is List:
-            #     return List(exprs)
+            if func is List:
+                return List(exprs)
             if isa(func, Procedure):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
             else:
-                return func(*exprs)
+                result = func(*exprs)
+                # set-car and set-cdr may change pair into list or conversely
+                if parts[0].startswith('set-'):
+                    try:
+                        env.update({parts[1]:result})
+                    except TypeError:
+                        # the changed object may temporary
+                        return result
+                    except Exception as e:
+                        raise e
+                return result
 
 def repl():
     """Read-evaluate-print-loop."""
