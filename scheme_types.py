@@ -127,13 +127,16 @@ def list_ref(s_list, i):
         raise TypeError("parameter of list-ref must be a list")
     return s_list[i]
 
-def car(pair):
-    """Return the first element of the pair."""
-    return pair.car
+def list_set(s_list, i, val):
+    """Set value in list by index."""
+    if not isa(s_list, List):
+        raise TypeError("parameter of list-set! must be a list")
+    s_list[i] = val
+    return None
 
-def cdr(pair):
-    """Return the second element of the pair."""
-    return pair.cdr
+def make_list(num, val):
+    """Construct a list filled with num numbers of value val."""
+    return List([val for i in range(num)])
 
 def set_car(pair, val):
     """Set car of the pair."""

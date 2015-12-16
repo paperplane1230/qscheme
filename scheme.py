@@ -51,13 +51,15 @@ def _init_global_env(env):
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.is_, 'length':len,
-        'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
-        'boolean?':lambda x: isa(x, bool), 'integer?':is_int, 'rational?':is_rational,
+        'cons':cons, 'set-car!':set_car, 'set-cdr!':set_cdr,
+        'car':lambda x: x.car, 'cdr':lambda x: x.cdr, 'rational?':is_rational,
+        'boolean?':lambda x: isa(x,bool), 'integer?':is_int,
         'real?':is_rational,    # it seems in scheme rational? equals real?
         'number?':is_number, 'null?':lambda x: x==[], 'equal?':op.eq,
-        'string?':lambda x: isa(x,str), 'expt':math.pow,
+        'string?':lambda x: isa(x,str), 'expt':math.pow, 'list-set!':list_set,
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
-        'number->string':num2str,'string->number':str2num,
+        'number->string':num2str,'string->number':str2num, 'make-list':make_list,
+        'pair?':lambda x: isa(x,Pair), 'list?':lambda x: isa(x,List),
     })
     return env
 
