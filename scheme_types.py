@@ -70,6 +70,9 @@ class List:
     def __len__(self):
         """Length of list."""
         return len(self.__members)
+    def __eq__(self, s_list):
+        """Compare two lists."""
+        return self.__cons == s_list.pair
     def __getitem__(self, i):
         """Get member by index."""
         return self.__members[i]
@@ -80,6 +83,10 @@ class List:
         for i in range(key):
             pair = pair.cdr
         pair.car = val
+    @property
+    def members(self):
+        """Get the list inside."""
+        return self.__members
     @property
     def pair(self):
         """Return the pair inside it."""
@@ -112,6 +119,16 @@ def _pair2list(pair):
 def _list2pair(s_list):
     """Convert a list into pair."""
     return s_list.pair
+
+def append(s_list, val):
+    """Append val to a list, not modifying the list."""
+    if not isa(s_list, List):
+        raise TypeError("the first parameter of append must be a list")
+    members = s_list.members
+    result = Pair(members[-1], val)
+    for i in reversed(range(len(members)-1)):
+        result = Pair(members[i], result)
+    return result
 
 def cons(first, second):
     """Construct a pair or a list if possible.

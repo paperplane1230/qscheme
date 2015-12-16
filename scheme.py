@@ -60,6 +60,7 @@ def _init_global_env(env):
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':lambda x: isa(x,Pair), 'list?':lambda x: isa(x,List),
+        'append':append,
     })
     return env
 
