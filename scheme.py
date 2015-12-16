@@ -2,89 +2,8 @@
 
 import sys
 import operator as op
-import fractions
 
-isa = isinstance
-
-class Symbol(str):
-    """Class for symbol."""
-    pass
-
-class Pair:
-    """Class for pair in scheme(created by function cons)."""
-    def __init__(self, first, second):
-        """Construct a pair with given data."""
-        self.__first = first
-        self.__second = second
-    def __rm_outer(self, symbol):
-        """Remove outer boundary of second part when printing."""
-        if isa(symbol, Pair):
-            return ' ' + str(symbol)[1:-1]
-        # deal with situation where cdr is '()
-        if self.__second == []:
-            return ''
-        return ' . ' + tostr(symbol)
-    def __str__(self):
-        """Format for printing."""
-        return ''.join(['(', tostr(self.__first), self.__rm_outer(self.__second), ')'])
-    @property
-    def car(self):
-        """Return the first part."""
-        return self.__first
-    @property
-    def cdr(self):
-        """Return the second part."""
-        return self.__second
-    @car.setter
-    def car(self, value):
-        """Set the first element."""
-        self.__first = value
-    @cdr.setter
-    def cdr(self, value):
-        """Set the second element."""
-        self.__second = value
-
-class List:
-    """Class for list."""
-    def __init__(self, members):
-        """Construct a list in scheme with members in a list."""
-        self.__members = members
-        self.__cons = self.__list(self.__members)
-    def __list(self, exprs):
-        """Construct a list with method cons."""
-        result = cons(exprs[-1], [])
-        for i in reversed(range(len(exprs)-1)):
-            result = cons(exprs[i], result)
-        return result
-    def __str__(self):
-        """Format for printing."""
-        return str(self.__cons)
-
-def scheme_list(members):
-    """Construct a scheme list."""
-    return List(members)
-
-def car(pair):
-    """Return the first element of the pair."""
-    return pair.car
-
-def cdr(pair):
-    """Return the second element of the pair."""
-    return pair.cdr
-
-def set_car(pair, val):
-    """Set car of the pair."""
-    pair.car = val
-    return None
-
-def set_cdr(pair, val):
-    """Set cdr of the pair."""
-    pair.cdr = val
-    return None
-
-def cons(first, second):
-    """Construct a Pair."""
-    return Pair(first, second)
+from scheme_types import *
 
 class Env(dict):
     """Context Environment."""
@@ -126,85 +45,19 @@ class Procedure:
         """Get parameters."""
         return self.__parms
 
-def not_op(target):
-    """Implementation of operator not."""
-    if not isa(target, bool):
-        return False
-    return not target
-
 def __init_global_env(env):
     """Initialize the global environment."""
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
-        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.eq, 'length':len,
-        'cons':cons, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
-        'list':scheme_list,
+        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':ref_eq, 'length':len,
+        'cons':Pair, 'car':car, 'cdr':cdr, 'set-car!':set_car, 'set-cdr!':set_cdr,
+        'boolean?':is_bool, 'integer?':is_int, 'rational?':is_rational,
+        'real?':is_rational,    # it seems in scheme rational? equals real?
+        'number?':is_number, 'null?':is_null, 'equal?':op.eq,
     })
     return env
 
 global_env = __init_global_env(Env())
-
-def tostr(token):
-    """Convert a token into form in lisp."""
-    if token is True:
-        return '#t'
-    if token is False:
-        return '#f'
-    if isa(token, Symbol):
-        return token
-    if isa(token, str):
-        import json
-        return json.dumps(token)
-    if isa(token, complex):
-        return str(token).replace('j', 'i')[1:-1]
-    if isa(token, list):
-        return '(' + ' '.join(map(tostr, token)) + ')'
-    return str(token)
-
-class Tokenizer:
-    """Tokenizer to read tokens."""
-    def __init__(self, file=sys.stdin):
-        """Bind a file stream to read."""
-        import re
-        self.__file = file
-        self.__line = ''
-        self.__regex = re.compile(self.__generate_pattern())
-    def __yield_patterns(self):
-        """Yield patterns of regular expressions."""
-        # comment
-        yield r""";.*"""
-        # string
-        yield r'"(?:\\.|[^\\"])*"'
-        # unquote splicing
-        yield r""",@"""
-        # special
-        yield r"""[('`,)]"""
-        # normal
-        yield r"""[^\s('"`,;)]*"""
-    def __generate_pattern(self):
-        """Generate pattern for scheme."""
-        result = []
-        # space
-        result.append(r"""\s*""")
-        result.append('(')
-        result.append('|'.join(self.__yield_patterns()))
-        result.append(')')
-        # remaining
-        result.append(r"""(.*)""")
-        return ''.join(result)
-    def next_token(self):
-        """Get the next token."""
-        while True:
-            if self.__line == '':
-                self.__line = self.__file.readline()
-            if self.__line == '':
-                return None
-            token, self.__line = self.__regex.match(self.__line).groups()
-            if token != '':
-                return token
-    def empty(self):
-        """Judge whether there are more than one expressions in a line."""
-        return self.__line == ''
 
 def _expand(parts, top_env=False):
     """Do expansion for list to be evaluated."""
@@ -320,7 +173,7 @@ def _mathop(func):
 
 def _cmpop(func):
     """Judge whether operator is a comparison one."""
-    return func in [op.eq,op.lt,op.le,op.gt,op.ge]
+    return func in [ref_eq,op.lt,op.le,op.gt,op.ge]
 
 def _do_math_op(func, exprs):
     """Deal with basic math operator."""
@@ -349,8 +202,8 @@ def evaluate(parts, env=global_env):
             return env.find(parts)
         if not isa(parts, list):
             return parts
-        if len(parts) == 0:
-            return ()
+        if not parts:
+            return []
         if parts[0] == 'quote':
             return parts[1]
         if parts[0] == 'define':
@@ -383,22 +236,18 @@ def evaluate(parts, env=global_env):
                 return _do_math_op(func, exprs)
             if _cmpop(func):
                 return _do_cmp_op(func, exprs)
-            if func is scheme_list:
-                return scheme_list(exprs)
+            # if func is List:
+            #     return List(exprs)
             if isa(func, Procedure):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
             else:
                 return func(*exprs)
 
-def require(var, condition, msg='wrong length'):
-    """Assert if condition isn't satisfied."""
-    if not condition:
-        raise SyntaxError(tostr(var)+': '+msg)
-
 def repl():
     """Read-evaluate-print-loop."""
     prompt = '> '
+    from tokenizer import Tokenizer
     tokenizer = Tokenizer()
     while True:
         try:
