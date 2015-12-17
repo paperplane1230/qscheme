@@ -32,6 +32,8 @@ class Pair:
         return self.__str
     def __eq__(self, pair):
         """Compare two pairs."""
+        if not isa(pair, Pair):
+            raise TypeError("the two type can't be compared")
         return self.__first == pair.car and self.__second == pair.cdr
     @property
     def car(self):
@@ -60,6 +62,7 @@ class List:
         self.__cons = self.__list(self.__members)
     def __list(self, exprs):
         """Construct a list with method cons."""
+        require(exprs, len(exprs)!=0)
         result = Pair(exprs[-1], [])
         for i in reversed(range(len(exprs)-1)):
             result = Pair(exprs[i], result)
@@ -72,6 +75,8 @@ class List:
         return len(self.__members)
     def __eq__(self, s_list):
         """Compare two lists."""
+        if not isa(s_list, List):
+            raise TypeError("the two type can't be compared")
         return self.__cons == s_list.pair
     def __getitem__(self, i):
         """Get member by index."""
@@ -83,6 +88,14 @@ class List:
         for i in range(key):
             pair = pair.cdr
         pair.car = val
+    def __add__(self, right):
+        """Add scheme list with another thing."""
+        try:
+            if right == []:
+                return self
+        except TypeError:
+            None
+        raise TypeError("+ can't be applied between list and "+str(type(right)))
     @property
     def members(self):
         """Get the list inside."""
@@ -129,6 +142,14 @@ def append(s_list, val):
     for i in reversed(range(len(members)-1)):
         result = Pair(members[i], result)
     return result
+
+def is_list(s_list):
+    """Judge whether it's a list."""
+    return isa(s_list, List)
+
+def is_pair(pair):
+    """Judge whether it's a pair."""
+    return isa(pair, Pair) or is_list(pair)
 
 def cons(first, second):
     """Construct a pair or a list if possible.

@@ -59,8 +59,7 @@ def _init_global_env(env):
         'string?':lambda x: isa(x,str), 'expt':math.pow, 'list-set!':list_set,
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
-        'pair?':lambda x: isa(x,Pair), 'list?':lambda x: isa(x,List),
-        'append':append,
+        'pair?':is_pair, 'list?':is_list, 'append':append,
     })
     return env
 
@@ -105,6 +104,9 @@ def _expand(parts, top_env=False):
         require(parts, isa(symbol, Symbol), "can set! only a symbol")
         parts[2] = _expand(parts[2])
         return parts
+    if parts[0] == 'quasiquote':
+        require(parts, len(parts)==2)
+        return _expand_quasiquote(parts[1], True)
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
@@ -116,6 +118,30 @@ def _expand(parts, top_env=False):
     # (proc args...)
     return [_expand(i) for i in parts]
 
+def list_cat(part1, part2):
+    """Catenate two parts into a list."""
+    return [part1] + part2
+
+def _need_expand_quotes(parts):
+    """Judge whether the parts need to be expanded when dealing with quotes."""
+    return parts != [] and isa(parts, list)
+
+def _expand_quasiquote(parts, toplevel=False):
+    """Expand parts related to quasiquote."""
+    if not _need_expand_quotes(parts):
+        return [quotes["'"], parts]
+    require(parts, parts[0]!='unquote-splicing', "can't splice here")
+    if parts[0] == 'unquote':
+        require(parts, len(parts)==2)
+        return parts[1]
+    if _need_expand_quotes(parts[0]) and parts[0][0] == 'unquote-splicing':
+        require(parts[0], len(parts[0])==2)
+        return [op.add, parts[0][1], _expand_quasiquote(parts[1:])]
+    result = [list_cat, _expand_quasiquote(parts[0]), _expand_quasiquote(parts[1:])]
+    if toplevel:
+        result = [List, result]
+    return result
+
 quotes = {
         "'":Symbol('quote'), '`':Symbol('quasiquote'), ',':Symbol('unquote'),
         ',@':Symbol('unquote-splicing'),
@@ -123,10 +149,14 @@ quotes = {
 
 def parse(tokenizer):
     """Parse scheme statements."""
+    return _expand(_read(tokenizer), True)
+
+def _read(tokenizer):
+    """Read symbol to parse."""
     def _read_ahead(token):
         """Read ahead to construct an operation."""
         if token in quotes:
-            return [quotes[token], parse(tokenizer)]
+            return [quotes[token], _read(tokenizer)]
         if token == '(':
             memebers = []
             while True:
@@ -142,15 +172,21 @@ def parse(tokenizer):
         return None
     if token.startswith(';'):
         return ';'
-    return _expand(_read_ahead(token), True)
+    return _read_ahead(token)
 
 def _mathop(func):
     """Judge whether operator is a math one."""
-    return func in [op.add,op.sub,op.mul,op.truediv]
+    try:
+        return func in [op.add,op.sub,op.mul,op.truediv]
+    except Exception:
+        return False
 
 def _cmpop(func):
     """Judge whether operator is a comparison one."""
-    return func in [op.is_,op.lt,op.le,op.gt,op.ge]
+    try:
+        return func in [op.is_,op.lt,op.le,op.gt,op.ge]
+    except Exception:
+        return False
 
 def _do_math_op(func, exprs):
     """Deal with basic math operator."""
@@ -172,6 +208,15 @@ def _do_cmp_op(func, exprs):
             return False
     return True
 
+def _do_quote(parts):
+    """Return pair or list if possible when returning from quote."""
+    if not _need_expand_quotes(parts):
+        return parts
+    require(parts, parts.count('.')<=1, 'ill-formed dotted list')
+    if len(parts) == 3 and parts[1] == '.':
+        return Pair(_do_quote(parts[0]), _do_quote(parts[2]))
+    return List(parts)
+
 def evaluate(parts, env=global_env):
     """Evaluate value of parts."""
     while True:
@@ -182,7 +227,7 @@ def evaluate(parts, env=global_env):
         if not parts:
             return []
         if parts[0] == 'quote':
-            return parts[1]
+            return _do_quote(parts[1])
         if parts[0] == 'define':
             (_, symbol, val) = parts
             env[symbol] = evaluate(val, env)
@@ -221,7 +266,7 @@ def evaluate(parts, env=global_env):
             else:
                 result = func(*exprs)
                 # set-car and set-cdr may change pair into list or conversely
-                if parts[0].startswith('set-'):
+                if isa(parts[0], str) and parts[0].startswith('set-'):
                     try:
                         env.update({parts[1]:result})
                     except TypeError:
