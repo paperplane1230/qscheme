@@ -107,16 +107,19 @@ def _expand(parts, top_env=False):
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
         return _expand_quasiquote(parts[1])
+    # the next assignment makes sure define in begin is valid, others invalid
+    top_env = False
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
         require(parts, len(parts)==4)
     elif parts[0] == 'begin':
+        top_env = True
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
-    return [_expand(i) for i in parts]
+    return [_expand(i, top_env) for i in parts]
 
 def _list_cat(part1, part2):
     """Catenate two parts into a list."""
@@ -310,8 +313,8 @@ def repl():
         except KeyboardInterrupt:
             sys.stderr.write('\n')
             sys.stderr.flush()
-        # except Exception as e:
-        #     print("{0}: {1}".format(type(e).__name__, e))
+        except Exception as e:
+            print("{0}: {1}".format(type(e).__name__, e))
 
 if __name__ == '__main__':
     repl()
