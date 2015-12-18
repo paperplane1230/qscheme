@@ -106,7 +106,7 @@ def _expand(parts, top_env=False):
         return parts
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
-        return _expand_quasiquote(parts[1], True)
+        return _expand_quasiquote(parts[1])
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
@@ -118,17 +118,33 @@ def _expand(parts, top_env=False):
     # (proc args...)
     return [_expand(i) for i in parts]
 
-def list_cat(part1, part2):
+def _list_cat(part1, part2):
     """Catenate two parts into a list."""
+    if isa(part2, List):
+        part2 = part2.members
     return [part1] + part2
 
 def _need_expand_quotes(parts):
     """Judge whether the parts need to be expanded when dealing with quotes."""
     return parts != [] and isa(parts, list)
 
-def _expand_quasiquote(parts, toplevel=False):
+def _break_list(s_list):
+    """Break the outer list to construct a scheme list."""
+    if not isa(s_list, list):
+        raise TypeError('the parameter must a list')
+    return List(s_list)
+
+def _add_slist(left_list, right_list):
+    """Add two lists, may be a scheme list."""
+    if isa(left_list, List):
+        left_list = left_list.members
+    if isa(right_list, List):
+        right_list = right_list.members
+    return left_list + right_list
+
+def _expand_quasiquote(parts):
     """Expand parts related to quasiquote."""
-    if not _need_expand_quotes(parts):
+    if not _need_expand_quotes(parts) or parts[0] == 'quasiquote':
         return [quotes["'"], parts]
     require(parts, parts[0]!='unquote-splicing', "can't splice here")
     if parts[0] == 'unquote':
@@ -136,10 +152,9 @@ def _expand_quasiquote(parts, toplevel=False):
         return parts[1]
     if _need_expand_quotes(parts[0]) and parts[0][0] == 'unquote-splicing':
         require(parts[0], len(parts[0])==2)
-        return [op.add, parts[0][1], _expand_quasiquote(parts[1:])]
-    result = [list_cat, _expand_quasiquote(parts[0]), _expand_quasiquote(parts[1:])]
-    if toplevel:
-        result = [List, result]
+        return [_add_slist, parts[0][1], _expand_quasiquote(parts[1:])]
+    result = [_list_cat, _expand_quasiquote(parts[0]), _expand_quasiquote(parts[1:])]
+    result = [_break_list, result]
     return result
 
 quotes = {
@@ -158,12 +173,12 @@ def _read(tokenizer):
         if token in quotes:
             return [quotes[token], _read(tokenizer)]
         if token == '(':
-            memebers = []
+            members = []
             while True:
                 token = tokenizer.next_token()
                 if token == ')':
-                    return memebers
-                memebers.append(_read_ahead(token))
+                    return members
+                members.append(_read_ahead(token))
         else:
             return transform(token)
     # body of parse
@@ -295,8 +310,8 @@ def repl():
         except KeyboardInterrupt:
             sys.stderr.write('\n')
             sys.stderr.flush()
-        except Exception as e:
-            print("{0}: {1}".format(type(e).__name__, e))
+        # except Exception as e:
+        #     print("{0}: {1}".format(type(e).__name__, e))
 
 if __name__ == '__main__':
     repl()

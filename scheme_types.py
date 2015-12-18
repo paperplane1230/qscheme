@@ -58,6 +58,8 @@ class List:
     """Class for list."""
     def __init__(self, members):
         """Construct a list in scheme with members in a list."""
+        if not isa(members, list):
+            raise TypeError('the parameter of list must be a list of objects')
         self.__members = members
         self.__cons = self.__list(self.__members)
     def __list(self, exprs):
