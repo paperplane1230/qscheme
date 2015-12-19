@@ -5,46 +5,6 @@ import operator as op
 
 from scheme_types import *
 
-class Env(dict):
-    """Context Environment."""
-    def __init__(self, parms=(), args=(), outer=None):
-        """Initialize the environment with specific parameters."""
-        self.__outer = outer
-        if isa(parms, Symbol):
-            self.update({parms:list(args)})
-        else:
-            if len(parms) != len(args):
-                raise TypeError('expected {0}, given {1}'
-                        .format(tostr(parms), tostr(args)))
-            self.update(list(zip(parms, args)))
-    def find(self, op):
-        """Find operator in the environment."""
-        if op in self:
-            return self[op]
-        if self.__outer is None:
-            raise LookupError('unbound '+op)
-        return self.__outer.find(op)
-
-class Procedure:
-    """Class for procedure."""
-    def __init__(self, parms, body, env):
-        """Initialize a procedure with specific parameters, arguments and environment."""
-        self.__parms = parms
-        self.__body = body
-        self.__env = env
-    @property
-    def env(self):
-        """Get context environment."""
-        return self.__env
-    @property
-    def body(self):
-        """Get body."""
-        return self.__body
-    @property
-    def parms(self):
-        """Get parameters."""
-        return self.__parms
-
 def _init_global_env(env):
     """Initialize the global environment."""
     import math
@@ -65,7 +25,7 @@ def _init_global_env(env):
 
 global_env = _init_global_env(Env())
 
-def _expand(parts, top_env=False):
+def _expand(parts, can_define=False):
     """Do expansion for list to be evaluated."""
     if not isa(parts, list) or len(parts) == 0:
         return parts
@@ -73,7 +33,7 @@ def _expand(parts, top_env=False):
         require(parts, len(parts)==2)
         return parts
     if parts[0] == 'define':
-        if not top_env:
+        if not can_define:
             raise SyntaxError("can't bind name in null syntactic environment")
         if len(parts) == 2 and not isa(parts[1], list):
             parts.append(None)
@@ -107,19 +67,31 @@ def _expand(parts, top_env=False):
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
         return _expand_quasiquote(parts[1])
-    # the next assignment makes sure define in begin is valid, others invalid
-    top_env = False
+    if parts[0] == 'let':
+        require(parts, len(parts)>2)
+        variables = parts[1]
+        bodys = parts[2:]
+        require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
+                    for i in variables), 'illegal binding list')
+        parms, values = zip(*variables)
+        can_define_bodys = [True for i in bodys]
+        can_define_vals = [True for i in values]
+        lambda_body = list(map(_expand, bodys, can_define_bodys))
+        lambda_args = list(map(_expand, values, can_define_vals))
+        return _expand([['lambda',list(parms)]+lambda_body] + lambda_args)
+    # the next assignment makes sure defines in begin and let are valid, others invalid
+    can_define = False
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
         require(parts, len(parts)==4)
     elif parts[0] == 'begin':
-        top_env = True
+        can_define = True
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
-    return [_expand(i, top_env) for i in parts]
+    return [_expand(i, can_define) for i in parts]
 
 def _list_cat(part1, part2):
     """Catenate two parts into a list."""

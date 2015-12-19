@@ -2,6 +2,46 @@
 
 import fractions
 
+class Env(dict):
+    """Context Environment."""
+    def __init__(self, parms=(), args=(), outer=None):
+        """Initialize the environment with specific parameters."""
+        self.__outer = outer
+        if isa(parms, Symbol):
+            self.update({parms:list(args)})
+        else:
+            if len(parms) != len(args):
+                raise TypeError('expected {0}, given {1}'
+                        .format(tostr(parms), tostr(args)))
+            self.update(list(zip(parms, args)))
+    def find(self, op):
+        """Find operator in the environment."""
+        if op in self:
+            return self[op]
+        if self.__outer is None:
+            raise LookupError('unbound '+op)
+        return self.__outer.find(op)
+
+class Procedure:
+    """Class for procedure."""
+    def __init__(self, parms, body, env):
+        """Initialize a procedure with specific parameters, arguments and environment."""
+        self.__parms = parms
+        self.__body = body
+        self.__env = env
+    @property
+    def env(self):
+        """Get context environment."""
+        return self.__env
+    @property
+    def body(self):
+        """Get body."""
+        return self.__body
+    @property
+    def parms(self):
+        """Get parameters."""
+        return self.__parms
+
 class Symbol(str):
     """Class for symbol."""
     pass
