@@ -74,10 +74,8 @@ def _expand(parts, can_define=False):
         require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
                     for i in variables), 'illegal binding list')
         parms, values = zip(*variables)
-        can_define_bodys = [True for i in bodys]
-        can_define_vals = [True for i in values]
-        lambda_body = list(map(_expand, bodys, can_define_bodys))
-        lambda_args = list(map(_expand, values, can_define_vals))
+        lambda_body = list(map(_expand,bodys,[True for i in bodies]))
+        lambda_args = list(map(_expand,values,[True for i in values]))
         return _expand([['lambda',list(parms)]+lambda_body] + lambda_args)
     # the next assignment makes sure defines in begin and let are valid, others invalid
     can_define = False
@@ -202,9 +200,10 @@ def _do_quote(parts):
     """Return pair or list if possible when returning from quote."""
     if not _need_expand_quotes(parts):
         return parts
-    require(parts, parts.count('.')<=1, 'ill-formed dotted list')
-    if len(parts) == 3 and parts[1] == '.':
-        return Pair(_do_quote(parts[0]), _do_quote(parts[2]))
+    if parts.count('.')>1 or parts.count('.')==1 and parts.index('.')<len(parts)-2:
+        require(parts, False, 'ill-formed dotted list')
+    if len(parts) >= 3 and parts[-2] == '.':
+        return Pair(_do_quote(parts[0]), _do_quote(parts[1:]))
     return List(parts)
 
 def evaluate(parts, env=global_env):
