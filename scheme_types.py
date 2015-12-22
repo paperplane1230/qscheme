@@ -175,12 +175,17 @@ def _list2pair(s_list):
     """Convert a list into pair."""
     return s_list.pair
 
-def append(s_list, val):
+def append(*values):
     """Append val to a list, not modifying the list."""
+    require(values, len(values)>=2)
+    values = list(values)
+    s_list = values[0]
+    appended = values[1:]
     if not isa(s_list, List):
         raise TypeError("the first parameter of append must be a list")
-    members = s_list.members
-    result = Pair(members[-1], val)
+    last = appended.pop()
+    members = s_list.members + appended
+    result = Pair(members[-1], last)
     for i in reversed(range(len(members)-1)):
         result = Pair(members[i], result)
     return result

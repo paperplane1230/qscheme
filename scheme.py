@@ -44,7 +44,7 @@ def _expand(parts, can_define=False):
             parms = header[1:]
             # (define (func parms...) body)
             #   => (define func (lambda (parms...) body))
-            return _expand(['define', name, ['lambda', parms]+parts[2:]])
+            return _expand(['define', name, ['lambda', parms]+parts[2:]], can_define)
         require(parts, len(parts)==3)
         require(parts, isa(header, Symbol), "can only define a symbol")
         parts[2] = _expand(parts[2])
