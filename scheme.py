@@ -44,7 +44,7 @@ def _expand(parts, can_define=False):
             parms = header[1:]
             # (define (func parms...) body)
             #   => (define func (lambda (parms...) body))
-            return _expand(['define', name, ['lambda', parms]+parts[2:]], can_define)
+            return _expand(['define',name,['lambda', parms]+parts[2:]], can_define)
         require(parts, len(parts)==3)
         require(parts, isa(header, Symbol), "can only define a symbol")
         parts[2] = _expand(parts[2])
@@ -57,7 +57,7 @@ def _expand(parts, can_define=False):
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
         body.insert(0, 'begin')
-        return ['lambda', parms, _expand(body)]
+        return ['lambda', parms, _expand(body,can_define)]
     if parts[0] == 'set!':
         require(parts, len(parts)==3)
         symbol = parts[1]
@@ -69,23 +69,30 @@ def _expand(parts, can_define=False):
         return _expand_quasiquote(parts[1])
     if parts[0] == 'let':
         require(parts, len(parts)>2)
-        variables = parts[1]
-        bodys = parts[2:]
+        binds = parts[1]
+        bodies = parts[2:]
         require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
-                    for i in variables), 'illegal binding list')
-        parms, values = zip(*variables)
-        lambda_body = list(map(_expand,bodys,[True for i in bodies]))
-        lambda_args = list(map(_expand,values,[True for i in values]))
-        return _expand([['lambda',list(parms)]+lambda_body] + lambda_args)
-    # the next assignment makes sure defines in begin and let are valid, others invalid
-    can_define = False
+                    for i in binds), 'illegal binding list')
+        parms, values = zip(*binds)
+        lambda_body = list(map(_expand,bodies,[can_define for i in bodies]))
+        lambda_args = list(map(_expand,values))
+        return _expand([['lambda',list(parms)]+lambda_body]+lambda_args, can_define)
+    # if parts[0] == 'do':
+    #     require(parts, len(parts)>2)
+    #     binds = parts[1]
+    #     condtion_val = parts[2]
+    #     bodies = parts[3:]
+    #     require(parts, all(isa(i, list) and len(i)==3 and isa(i[0], Symbol)
+    #                 for i in binds), 'illegal binding list')
+    #     parms, inits, steps = zip(*binds)
+    #     inits = list(map(_expand,inits,[]))
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
         require(parts, len(parts)==4)
+        can_define = False
     elif parts[0] == 'begin':
-        can_define = True
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
