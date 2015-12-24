@@ -19,15 +19,19 @@ def _init_global_env(env):
         'string?':lambda x: isa(x,str), 'expt':math.pow, 'list-set!':list_set,
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
-        'pair?':is_pair, 'list?':is_list, 'append':append,
+        'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
     })
     return env
+
+def display(content):
+    """Print content."""
+    sys.stdout.write(content if isa(content, str) else tostr(content))
 
 global_env = _init_global_env(Env())
 
 def _expand(parts, can_define=False):
     """Do expansion for list to be evaluated."""
-    if not isa(parts, list) or len(parts) == 0:
+    if not isa(parts, list) or not parts:
         return parts
     if parts[0] == 'quote':
         require(parts, len(parts)==2)
@@ -52,10 +56,10 @@ def _expand(parts, can_define=False):
     if parts[0] == 'lambda':
         require(parts, len(parts)>=3)
         parms = parts[1]
-        # body is a list even there's only one expression to be evaluated
-        body = parts[2:]
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
+        # body is a list even there's only one expression to be evaluated
+        body = parts[2:]
         body.insert(0, 'begin')
         return ['lambda', parms, _expand(body,can_define)]
     if parts[0] == 'set!':
@@ -70,22 +74,30 @@ def _expand(parts, can_define=False):
     if parts[0] == 'let':
         require(parts, len(parts)>2)
         binds = parts[1]
-        bodies = parts[2:]
         require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
                     for i in binds), 'illegal binding list')
+        # _expand in lambda will expand bodies
+        bodies = parts[2:]
         parms, values = zip(*binds)
-        lambda_body = list(map(_expand,bodies,[can_define for i in bodies]))
-        lambda_args = list(map(_expand,values))
-        return _expand([['lambda',list(parms)]+lambda_body]+lambda_args, can_define)
-    # if parts[0] == 'do':
-    #     require(parts, len(parts)>2)
-    #     binds = parts[1]
-    #     condtion_val = parts[2]
-    #     bodies = parts[3:]
-    #     require(parts, all(isa(i, list) and len(i)==3 and isa(i[0], Symbol)
-    #                 for i in binds), 'illegal binding list')
-    #     parms, inits, steps = zip(*binds)
-    #     inits = list(map(_expand,inits,[]))
+        args = list(map(_expand,values))
+        return _expand([['lambda',list(parms)]+bodies]+args, can_define)
+    if parts[0] == 'do':
+        require(parts, len(parts)>2)
+        binds = parts[1]
+        require(parts, all(isa(i, list) and len(i)==3 and isa(i[0], Symbol)
+                    for i in binds), 'illegal binding list')
+        condition_val = parts[2]
+        require(parts, isa(condition_val,list) and condition_val,
+                'do must have a condition to stop')
+        if len(condition_val) == 1:
+            condition_val.append(None)
+        bodies = parts[3:]
+        parms, inits, steps = zip(*binds)
+        inits = list(map(_expand,inits))
+        steps = list(map(_expand,steps))
+        cond, return_val = list(map(_expand,condition_val))
+        bodies = list(map(_expand,bodies))
+        return ['do', parms, inits, steps, cond, return_val, bodies]
     # next branches share 'return' expression
     if parts[0] == 'if':
         if len(parts) == 3:
@@ -225,22 +237,33 @@ def evaluate(parts, env=global_env):
         if parts[0] == 'quote':
             return _do_quote(parts[1])
         if parts[0] == 'define':
-            (_, symbol, val) = parts
+            _, symbol, val = parts
             env[symbol] = evaluate(val, env)
             return symbol
         if parts[0] == 'lambda':
             # get parameters and body of lambda
             return Procedure(parts[1], parts[2], env)
         if parts[0] == 'set!':
-            (_, symbol, value) = parts
+            _, symbol, value = parts
             try:
                 oldVal = env.find(symbol)
             except KeyError as e:
                 raise e
             env[symbol] = evaluate(value, env)
             return oldVal
-        if parts[0] == 'if':
-            (_, cond, branch1, branch2) = parts
+        if parts[0] == 'do':
+            _, parms, inits, steps, cond, ret_val, bodies = parts
+            env = Env(outer=env)
+            init_vals = [evaluate(i, env) for i in inits]
+            env.update(zip(parms,init_vals))
+            while not evaluate(cond, env):
+                for i in bodies[0:]:
+                    evaluate(i, env)
+                new_vals = [evaluate(i, env) for i in steps]
+                env.update(zip(parms,new_vals))
+            parts = ret_val
+        elif parts[0] == 'if':
+            _, cond, branch1, branch2 = parts
             parts = branch1 if evaluate(cond, env) else branch2
         elif parts[0] == 'begin':
             for i in parts[1:-1]:
@@ -291,6 +314,8 @@ def repl():
         except KeyboardInterrupt:
             sys.stderr.write('\n')
             sys.stderr.flush()
+            sys.stdout.write('\n')
+            sys.stdout.flush()
         except Exception as e:
             print("{0}: {1}".format(type(e).__name__, e))
 

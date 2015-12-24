@@ -8,12 +8,13 @@ class Env(dict):
         """Initialize the environment with specific parameters."""
         self.__outer = outer
         if isa(parms, Symbol):
+        # (lambda x (...))
             self.update({parms:list(args)})
         else:
             if len(parms) != len(args):
                 raise TypeError('expected {0}, given {1}'
                         .format(tostr(parms), tostr(args)))
-            self.update(list(zip(parms, args)))
+            self.update(zip(parms, args))
     def find(self, op):
         """Find operator in the environment."""
         if op in self:
@@ -41,6 +42,46 @@ class Procedure:
     def parms(self):
         """Get parameters."""
         return self.__parms
+
+# class Do_loop:
+#     """Do loop to store related information."""
+#     def __init__(self, parms, inits, steps, cond, ret_val, bodies, env):
+#         """Initialize a do loop with related information."""
+#         self.__parms = parms
+#         self.__inits = inits
+#         self.__steps = steps
+#         self.__cond = cond
+#         self.__ret_val = ret_val
+#         self.__bodies = bodies
+#         self.__env = env
+#     @property
+#     def parms(self):
+#         """Get parameters of do loop."""
+#         return self.__parms
+#     @property
+#     def inits(self):
+#         """Get initial values of do loop."""
+#         return self.__inits
+#     @property
+#     def steps(self):
+#         """Get steps of do loop."""
+#         return self.__steps
+#     @property
+#     def cond(self):
+#         """Get condition of do loop."""
+#         return self.__cond
+#     @property
+#     def ret_val(self):
+#         """Get return value of do loop."""
+#         return self.__ret_val
+#     @property
+#     def bodies(self):
+#         """Get bodies of do loop."""
+#         return self.__bodies
+#     @property
+#     def env(self):
+#         """Get environment of do loop."""
+#         return self.__env
 
 class Symbol(str):
     """Class for symbol."""
