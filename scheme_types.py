@@ -345,3 +345,18 @@ def display(content):
     """Print content."""
     print(content if isa(content, str) else tostr(content))
 
+def lcm(num1, num2):
+    """Compute the least common multiple for two numbers."""
+    return num1 * num2 // fractions.gcd(num1,num2)
+
+def numerator(num):
+    """Return numerator of a fraction."""
+    if not isa(num ,fractions.Fraction) and not isa(num, int):
+        raise TypeError('parameter of numerator must be a fraction or integer')
+    return num.numerator
+
+def denominator(num):
+    """Return denominator of a fraction."""
+    if not isa(num ,fractions.Fraction) and not isa(num, int):
+        raise TypeError('parameter of denominator must be a fraction or integer')
+    return num.denominator

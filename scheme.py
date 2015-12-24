@@ -11,9 +11,9 @@ def _init_global_env(env):
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
         '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.is_, 'length':len,
-        'cons':cons, 'set-car!':set_car, 'set-cdr!':set_cdr,
+        'cons':cons, 'set-car!':set_car, 'set-cdr!':set_cdr, 'gcd':fractions.gcd,
         'car':lambda x: x.car, 'cdr':lambda x: x.cdr, 'rational?':is_rational,
-        'boolean?':lambda x: isa(x,bool), 'integer?':is_int,
+        'boolean?':lambda x: isa(x,bool), 'integer?':is_int, 'lcm':lcm,
         'real?':is_rational,    # it seems in scheme rational? equals real?
         'number?':is_number, 'null?':lambda x: x==[], 'equal?':op.eq,
         'string?':lambda x: isa(x,str), 'expt':math.pow, 'list-set!':list_set,
@@ -21,6 +21,7 @@ def _init_global_env(env):
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
         'quotient':quotient, 'remainder':remainder, 'modulo':op.mod,
+        'sqrt':lambda x: x ** 0.5, 'numerator':numerator, 'denominator':denominator,
     })
     return env
 
@@ -187,7 +188,7 @@ def _findop(func, op_list):
 
 def _mathop(func):
     """Judge whether operator is a math one."""
-    return _findop(func, [op.add,op.sub,op.mul,op.truediv])
+    return _findop(func, [lcm,fractions.gcd,op.add,op.sub,op.mul,op.truediv])
 
 def _cmpop(func):
     """Judge whether operator is a comparison one."""
@@ -200,6 +201,14 @@ def _modop(func):
 def _do_math_op(func, exprs):
     """Deal with basic math operator."""
     import functools
+    if func is fractions.gcd:
+        if not all(isa(i,int) for i in exprs):
+            raise TypeError('parameters of gcd must be  integers')
+        exprs.insert(0, 0)
+    if func is lcm:
+        if not all(isa(i,int) for i in exprs):
+            raise TypeError('parameters of lcm must be  integers')
+        exprs.insert(0, 1)
     if func is op.sub and len(exprs) == 1:
         exprs.insert(0, 0)
     if func is op.truediv and len(exprs) == 1:
@@ -220,8 +229,8 @@ def _do_cmp_op(func, exprs):
 def _do_mod_op(func, exprs):
     """Do operations related to mod."""
     require(exprs, len(exprs)==2)
-    require(exprs, isa(exprs[0],int) and isa(exprs[1],int),
-            'parameters of mod operation must be integers')
+    if not isa(exprs[0],int) or not isa(exprs[1],int):
+        raise TypeError('parameters of mod operation must be integers')
     return func(*exprs)
 
 _special_forms = {
