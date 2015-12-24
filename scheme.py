@@ -20,12 +20,9 @@ def _init_global_env(env):
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
+        'quotient':quotient, 'remainder':remainder, 'modulo':op.mod,
     })
     return env
-
-def display(content):
-    """Print content."""
-    sys.stdout.write(content if isa(content, str) else tostr(content))
 
 global_env = _init_global_env(Env())
 
@@ -181,19 +178,24 @@ def _read(tokenizer):
         return ';'
     return _read_ahead(token)
 
-def _mathop(func):
-    """Judge whether operator is a math one."""
+def _findop(func, op_list):
+    """Judge whether the operator is in the list."""
     try:
-        return func in [op.add,op.sub,op.mul,op.truediv]
+        return func in op_list
     except Exception:
         return False
 
+def _mathop(func):
+    """Judge whether operator is a math one."""
+    return _findop(func, [op.add,op.sub,op.mul,op.truediv])
+
 def _cmpop(func):
     """Judge whether operator is a comparison one."""
-    try:
-        return func in [op.is_,op.lt,op.le,op.gt,op.ge]
-    except Exception:
-        return False
+    return _findop(func, [op.is_,op.lt,op.le,op.gt,op.ge])
+
+def _modop(func):
+    """Judge whether the operator is related to mod."""
+    return _findop(func, [remainder,op.mod,quotient])
 
 def _do_math_op(func, exprs):
     """Deal with basic math operator."""
@@ -214,6 +216,17 @@ def _do_cmp_op(func, exprs):
         if not func(exprs[i], exprs[i+1]):
             return False
     return True
+
+def _do_mod_op(func, exprs):
+    """Do operations related to mod."""
+    require(exprs, len(exprs)==2)
+    require(exprs, isa(exprs[0],int) and isa(exprs[1],int),
+            'parameters of mod operation must be integers')
+    return func(*exprs)
+
+_special_forms = {
+        _mathop: _do_math_op, _cmpop: _do_cmp_op, _modop: _do_mod_op,
+}
 
 def _do_quote(parts):
     """Return pair or list if possible when returning from quote."""
@@ -273,10 +286,9 @@ def evaluate(parts, env=global_env):
             # (proc args...)
             exprs = [evaluate(i, env) for i in parts]
             func = exprs.pop(0)
-            if _mathop(func):
-                return _do_math_op(func, exprs)
-            if _cmpop(func):
-                return _do_cmp_op(func, exprs)
+            for is_op in _special_forms:
+                if is_op(func):
+                    return _special_forms[is_op](func, exprs)
             if func is List:
                 return List(exprs)
             if isa(func, Procedure):
@@ -314,8 +326,6 @@ def repl():
         except KeyboardInterrupt:
             sys.stderr.write('\n')
             sys.stderr.flush()
-            sys.stdout.write('\n')
-            sys.stdout.flush()
         except Exception as e:
             print("{0}: {1}".format(type(e).__name__, e))
 

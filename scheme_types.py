@@ -43,46 +43,6 @@ class Procedure:
         """Get parameters."""
         return self.__parms
 
-# class Do_loop:
-#     """Do loop to store related information."""
-#     def __init__(self, parms, inits, steps, cond, ret_val, bodies, env):
-#         """Initialize a do loop with related information."""
-#         self.__parms = parms
-#         self.__inits = inits
-#         self.__steps = steps
-#         self.__cond = cond
-#         self.__ret_val = ret_val
-#         self.__bodies = bodies
-#         self.__env = env
-#     @property
-#     def parms(self):
-#         """Get parameters of do loop."""
-#         return self.__parms
-#     @property
-#     def inits(self):
-#         """Get initial values of do loop."""
-#         return self.__inits
-#     @property
-#     def steps(self):
-#         """Get steps of do loop."""
-#         return self.__steps
-#     @property
-#     def cond(self):
-#         """Get condition of do loop."""
-#         return self.__cond
-#     @property
-#     def ret_val(self):
-#         """Get return value of do loop."""
-#         return self.__ret_val
-#     @property
-#     def bodies(self):
-#         """Get bodies of do loop."""
-#         return self.__bodies
-#     @property
-#     def env(self):
-#         """Get environment of do loop."""
-#         return self.__env
-
 class Symbol(str):
     """Class for symbol."""
     pass
@@ -369,3 +329,19 @@ def str2num(numstr):
     if not isa(numstr, str):
         raise TypeError("parameter of string->number must be a string")
     return transform(numstr)
+
+def quotient(left_object, right_object):
+    """Return quotient of the two and round towards 0."""
+    return int(float(left_object)/right_object)
+
+def remainder(left_object, right_object):
+    """Return left % right whose sign is the same with the left one."""
+    result = left_object % right_object
+    if left_object < 0 and result > 0 or left_object > 0 and result < 0:
+        result = result - right_object
+    return result
+
+def display(content):
+    """Print content."""
+    print(content if isa(content, str) else tostr(content))
+

@@ -44,4 +44,5 @@ class Tokenizer:
                 return token
     def empty(self):
         """Judge whether there are more than one expressions in a line."""
-        return self.__line == ''
+        return self.__line == '' or self.__line.isspace()
+
