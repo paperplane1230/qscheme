@@ -73,8 +73,7 @@ class Pair:
         return self.__str
     def __eq__(self, pair):
         """Compare two pairs."""
-        if not isa(pair, Pair):
-            raise TypeError("the two type can't be compared")
+        require_type(isa(pair, Pair), "the two type can't be compared")
         return self.__first == pair.car and self.__second == pair.cdr
     @property
     def car(self):
@@ -99,8 +98,8 @@ class List:
     """Class for list."""
     def __init__(self, members):
         """Construct a list in scheme with members in a list."""
-        if not isa(members, list):
-            raise TypeError('the parameter of list must be a list of objects')
+        require_type(isa(members, list),
+                'the parameter of list must be a list of objects')
         self.__members = members
         self.__cons = self.__list(self.__members)
     def __list(self, exprs):
@@ -118,8 +117,7 @@ class List:
         return len(self.__members)
     def __eq__(self, s_list):
         """Compare two lists."""
-        if not isa(s_list, List):
-            raise TypeError("the two type can't be compared")
+        require_type(isa(s_list, List), "the two type can't be compared")
         return self.__cons == s_list.pair
     def __getitem__(self, i):
         """Get member by index."""
@@ -182,8 +180,7 @@ def append(*values):
     values = list(values)
     s_list = values[0]
     appended = values[1:]
-    if not isa(s_list, List):
-        raise TypeError("the first parameter of append must be a list")
+    require_type(isa(s_list,List), 'the first parameter of append must be a list')
     last = appended.pop()
     members = s_list.members + appended
     result = Pair(members[-1], last)
@@ -209,14 +206,12 @@ def cons(first, second):
 
 def list_ref(s_list, i):
     """Return the ith element of the list."""
-    if not isa(s_list, List):
-        raise TypeError("parameter of list-ref must be a list")
+    require_type(isa(s_list,List), 'parameters of list-ref must be a list')
     return s_list[i]
 
 def list_set(s_list, i, val):
     """Set value in list by index."""
-    if not isa(s_list, List):
-        raise TypeError("parameter of list-set! must be a list")
+    require_type(isa(s_list,List), 'parameters of list-set! must be a list')
     s_list[i] = val
     return None
 
@@ -299,6 +294,11 @@ def require(var, condition, msg='wrong length'):
     if not condition:
         raise SyntaxError(tostr(var)+': '+msg)
 
+def require_type(cond, msg):
+    """Assert for TypeError."""
+    if not cond:
+        raise TypeError(msg)
+
 def not_op(target):
     """Implementation of operator not."""
     if not isa(target, bool):
@@ -323,14 +323,12 @@ def is_number(symbol):
 
 def num2str(num):
     """Convert number to string."""
-    if not is_number(num):
-        raise TypeError("parameter of number->string must be a number")
+    require_type(is_number(num), 'parameter of number->string must be a number')
     return tostr(num)
 
 def str2num(numstr):
     """Convert string to number."""
-    if not isa(numstr, str):
-        raise TypeError("parameter of string->number must be a string")
+    require_type(isa(numstr,str), 'parameter of string->number must be a string')
     return transform(numstr)
 
 def quotient(left_object, right_object):
@@ -354,20 +352,20 @@ def lcm(num1, num2):
 
 def numerator(num):
     """Return numerator of a fraction."""
-    if not isa(num ,fractions.Fraction) and not isa(num, int):
-        raise TypeError('parameter of numerator must be a fraction or integer')
+    require_type(isa(num,fractions.Fraction) or isa(num,int),
+            'parameter of numerator must be a fraction or integer')
     return num.numerator
 
 def denominator(num):
     """Return denominator of a fraction."""
-    if not isa(num ,fractions.Fraction) and not isa(num, int):
-        raise TypeError('parameter of denominator must be a fraction or integer')
+    require_type(isa(num,fractions.Fraction) or isa(num,int),
+            'parameter of denominator must be a fraction or integer')
     return num.denominator
 
 def make_rectangular(num1, num2):
     """Construct complex with two numbers."""
-    if not (isa(num1,int) or isa(num1,float)) or not (isa(num2,int) or isa(num2,float)):
-        raise TypeError('parameters of make_rectangular must be integers or float numbers')
+    require_type((isa(num1,int) or isa(num1,float)) and (isa(num2,int) or isa(num2,float)),
+            'parameters of make_rectangular must be integers or float numbers')
     return complex(num1, num2)
 
 def is_complex(num):
@@ -377,3 +375,28 @@ def is_complex(num):
     except Exception:
         return False
     return True
+
+def str2symbol(string):
+    """Convert a string to symbol."""
+    require_type(isa(string, str), 'parameter of string->symbol must be a string')
+    if string.find('"') >= 0:
+        string = ''.join(['|', string, '|'])
+    return Symbol(string)
+
+def substr(string, beg, end):
+    """Return substring from beg to end."""
+    require_type(isa(string, str), 'the first parameter of substring must be a string')
+    if beg < 0 or end >= len(string) or beg > end:
+        raise IndexError('the index of substring is invalid')
+    return string[beg:end]
+
+def append_str(*strs):
+    """Append strings."""
+    return ''.join(list(strs))
+
+def reverse_list(s_list):
+    """Reverse a scheme list."""
+    require_type(isa(s_list, List), 'parameter of reverse must be a list')
+    new_list = s_list.members.copy()
+    new_list.reverse()
+    return List(new_list)

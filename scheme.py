@@ -29,7 +29,9 @@ def _init_global_env(env):
         'acos':math.acos, 'atan':math.atan, 'make-rectangular':make_rectangular,
         'real-part':lambda x: x.real, 'imag-part':lambda x: x.imag,
         'magnitude':lambda x: math.sqrt(x.real*x.real+x.imag*x.imag),
-        'complex?':is_complex,
+        'complex?':is_complex, 'string->symbol':str2symbol, 'substring':substr,
+        'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
+        'reverse':reverse_list,
     })
     return env
 
@@ -128,8 +130,7 @@ def _need_expand_quotes(parts):
 
 def _break_list(s_list):
     """Break the outer list to construct a scheme list."""
-    if not isa(s_list, list):
-        raise TypeError('the parameter must a list')
+    require_type(isa(s_list, list), 'the parameter must be a list')
     return List(s_list)
 
 def _add_slist(left_list, right_list):
@@ -210,12 +211,12 @@ def _do_math_op(func, exprs):
     """Deal with basic math operator."""
     import functools
     if func is fractions.gcd:
-        if not all(isa(i,int) for i in exprs):
-            raise TypeError('parameters of gcd must be  integers')
+        require_type(all(isa(i,int) for i in exprs),
+                'parameters of gcd must be integers')
         exprs.insert(0, 0)
     if func is lcm:
-        if not all(isa(i,int) for i in exprs):
-            raise TypeError('parameters of lcm must be  integers')
+        require_type(all(isa(i,int) for i in exprs),
+                'parameters of lcm must be integers')
         exprs.insert(0, 1)
     if func is op.sub and len(exprs) == 1:
         exprs.insert(0, 0)
@@ -237,8 +238,8 @@ def _do_cmp_op(func, exprs):
 def _do_mod_op(func, exprs):
     """Do operations related to mod."""
     require(exprs, len(exprs)==2)
-    if not isa(exprs[0],int) or not isa(exprs[1],int):
-        raise TypeError('parameters of mod operation must be integers')
+    require_type(isa(exprs[0],int) and isa(exprs[1],int),
+            'parameters of mod operation must be integers')
     return func(*exprs)
 
 _special_forms = {
