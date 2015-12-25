@@ -22,6 +22,8 @@ def _init_global_env(env):
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
         'quotient':quotient, 'remainder':remainder, 'modulo':op.mod,
         'sqrt':lambda x: x ** 0.5, 'numerator':numerator, 'denominator':denominator,
+        'floor':math.floor, 'ceiling':math.ceil, 'truncate':math.trunc,
+        'round':round,
     })
     return env
 
