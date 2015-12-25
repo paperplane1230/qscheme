@@ -21,9 +21,15 @@ def _init_global_env(env):
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
         'quotient':quotient, 'remainder':remainder, 'modulo':op.mod,
-        'sqrt':lambda x: x ** 0.5, 'numerator':numerator, 'denominator':denominator,
+        'sqrt':math.sqrt, 'numerator':numerator, 'denominator':denominator,
         'floor':math.floor, 'ceiling':math.ceil, 'truncate':math.trunc,
-        'round':round,
+        'round':round, 'zero?':lambda x: x==0, 'negative?':lambda x: x<0,
+        'positive?':lambda x: x>0, 'even?':lambda x: x%2==0, 'odd?':lambda x: x%2!=0,
+        'sin':math.sin, 'cos':math.cos, 'tan':math.tan, 'asin':math.asin,
+        'acos':math.acos, 'atan':math.atan, 'make-rectangular':make_rectangular,
+        'real-part':lambda x: x.real, 'imag-part':lambda x: x.imag,
+        'magnitude':lambda x: math.sqrt(x.real*x.real+x.imag*x.imag),
+        'complex?':is_complex,
     })
     return env
 

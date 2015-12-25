@@ -286,7 +286,10 @@ def tostr(token):
         import json
         return json.dumps(token)
     if isa(token, complex):
-        return str(token).replace('j', 'i')[1:-1]
+        result = str(token).replace('j', 'i')
+        if result.find('(') < 0:
+            return result
+        return result[1:-1]
     if isa(token, list):
         return '(' + ' '.join(map(tostr, token)) + ')'
     return str(token)
@@ -360,3 +363,17 @@ def denominator(num):
     if not isa(num ,fractions.Fraction) and not isa(num, int):
         raise TypeError('parameter of denominator must be a fraction or integer')
     return num.denominator
+
+def make_rectangular(num1, num2):
+    """Construct complex with two numbers."""
+    if not (isa(num1,int) or isa(num1,float)) or not (isa(num2,int) or isa(num2,float)):
+        raise TypeError('parameters of make_rectangular must be integers or float numbers')
+    return complex(num1, num2)
+
+def is_complex(num):
+    """Judge whether the number is a complex."""
+    try:
+        complex(num)
+    except Exception:
+        return False
+    return True
