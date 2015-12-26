@@ -6,22 +6,41 @@ import operator as op
 from tokenizer import Tokenizer
 from scheme_types import *
 
-def s_eval(*args):
+def s_eval(content, env):
     """Procedure eval of scheme."""
-    args = list(args)
-    require(args, len(args)==2)
-    content = args[0]
     if isa(content, List):
         content = content.members
-    return evaluate(_expand(content,True), args[1])
+    return evaluate(_expand(content,True), env)
+
+def s_map(*args):
+    """Map in scheme."""
+    args = list(args)
+    env = args.pop()
+    require(args, len(args)>1)
+    require_type(is_procedure(args[0]),
+            'the first parameter of map must be a procedure')
+    min_len = sys.maxsize
+    proc = args.pop(0)
+    for s_list in args:
+        require_type(isa(s_list, List), 'parameters of map must be lists')
+        if len(s_list) < min_len:
+            min_len = len(s_list)
+    result = []
+    for i in range(min_len):
+        subexpr = [proc]
+        for arg in args:
+            subexpr.append(arg[i])
+        result.append(evaluate(subexpr,env))
+    return List(result)
 
 def s_apply(*args):
     """Apply in scheme."""
     args = list(args)
     env = args.pop()
-    require(args, len(args)>2)
+    require(args, len(args)>1)
     require_type(isa(args[-1], List), 'the last parameter of apply must be a list')
-    require_type(is_procedure(args[0]), 'the first parameter of apply must be a procedure')
+    require_type(is_procedure(args[0]),
+            'the first parameter of apply must be a procedure')
     end_list = args.pop()
     args += end_list.members
     return evaluate(args, env)
@@ -57,7 +76,7 @@ def _init_global_env(env):
         'complex?':is_complex, 'string->symbol':str2symbol, 'substring':substr,
         'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
         'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
-        'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply,
+        'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply, 'map':s_map,
     })
     return env
 
@@ -272,7 +291,7 @@ _special_forms = {
         _mathop: _do_math_op, _cmpop: _do_cmp_op, _modop: _do_mod_op,
 }
 
-_need_env = [s_eval, s_apply,]
+_need_env = [s_eval, s_apply, s_map]
 
 def _do_quote(parts):
     """Return pair or list if possible when returning from quote."""
