@@ -12,6 +12,10 @@ def s_eval(content):
         content = content.members
     return evaluate(_expand(content, True))
 
+def load_file(filename):
+    """Load file to evaluate."""
+    repl(open(filename))
+
 def _init_global_env(env):
     """Initialize the global environment."""
     import math
@@ -38,7 +42,7 @@ def _init_global_env(env):
         'magnitude':lambda x: math.sqrt(x.real*x.real+x.imag*x.imag),
         'complex?':is_complex, 'string->symbol':str2symbol, 'substring':substr,
         'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
-        'reverse':reverse_list, 'procedure?':is_procedure,
+        'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
         'eval':s_eval, 'odd?':lambda x: x%2!=0,
     })
     return env
@@ -333,10 +337,10 @@ def evaluate(parts, env=global_env):
                         raise e
                 return result
 
-def repl():
+def repl(in_from=sys.stdin):
     """Read-evaluate-print-loop."""
     prompt = '> '
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(in_from)
     while True:
         try:
             if tokenizer.empty():
