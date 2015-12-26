@@ -6,11 +6,25 @@ import operator as op
 from tokenizer import Tokenizer
 from scheme_types import *
 
-def s_eval(content):
+def s_eval(*args):
     """Procedure eval of scheme."""
+    args = list(args)
+    require(args, len(args)==2)
+    content = args[0]
     if isa(content, List):
         content = content.members
-    return evaluate(_expand(content, True))
+    return evaluate(_expand(content,True), args[1])
+
+def s_apply(*args):
+    """Apply in scheme."""
+    args = list(args)
+    env = args.pop()
+    require(args, len(args)>2)
+    require_type(isa(args[-1], List), 'the last parameter of apply must be a list')
+    require_type(is_procedure(args[0]), 'the first parameter of apply must be a procedure')
+    end_list = args.pop()
+    args += end_list.members
+    return evaluate(args, env)
 
 def load_file(filename):
     """Load file to evaluate."""
@@ -43,7 +57,7 @@ def _init_global_env(env):
         'complex?':is_complex, 'string->symbol':str2symbol, 'substring':substr,
         'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
         'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
-        'eval':s_eval, 'odd?':lambda x: x%2!=0,
+        'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply,
     })
     return env
 
@@ -258,6 +272,8 @@ _special_forms = {
         _mathop: _do_math_op, _cmpop: _do_cmp_op, _modop: _do_mod_op,
 }
 
+_need_env = [s_eval, s_apply,]
+
 def _do_quote(parts):
     """Return pair or list if possible when returning from quote."""
     if not _need_expand_quotes(parts):
@@ -267,6 +283,12 @@ def _do_quote(parts):
     if len(parts) >= 3 and parts[-2] == '.':
         return Pair(_do_quote(parts[0]), _do_quote(parts[1:]))
     return List(parts)
+
+def _deal_special(func, exprs):
+    """Deal with special functions."""
+    for is_op in _special_forms:
+        if is_op(func):
+            return _special_forms[is_op](func, exprs)
 
 def evaluate(parts, env=global_env):
     """Evaluate value of parts."""
@@ -325,6 +347,8 @@ def evaluate(parts, env=global_env):
                 parts = func.body
                 env = Env(func.parms, exprs, func.env)
             else:
+                if func in _need_env:
+                    exprs.append(env)
                 result = func(*exprs)
                 # set-car and set-cdr may change pair into list or conversely
                 if isa(parts[0], str) and parts[0].startswith('set-'):
