@@ -405,3 +405,9 @@ def is_procedure(procedure):
     """Judge whether it's a procedure."""
     return isa(procedure,Procedure) or isa(procedure,type(max)) or isa(procedure,type(tostr))
 
+def is_input(port):
+    """Judge whether the port is an input port."""
+    try:
+        return port.mode == 'r'
+    except Exception:
+        return False

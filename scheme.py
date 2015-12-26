@@ -77,6 +77,8 @@ def _init_global_env(env):
         'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
         'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
         'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply, 'map':s_map,
+        'open-input-file':open, 'port?':lambda x: isa(x,type(sys.stdout)),
+        'input-port?':is_input,
     })
     return env
 
