@@ -400,3 +400,8 @@ def reverse_list(s_list):
     new_list = s_list.members.copy()
     new_list.reverse()
     return List(new_list)
+
+def is_procedure(procedure):
+    """Judge whether it's a procedure."""
+    return isa(procedure,Procedure) or isa(procedure,type(max)) or isa(procedure,type(tostr))
+

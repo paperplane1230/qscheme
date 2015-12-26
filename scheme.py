@@ -3,7 +3,14 @@
 import sys
 import operator as op
 
+from tokenizer import Tokenizer
 from scheme_types import *
+
+def s_eval(content):
+    """Procedure eval of scheme."""
+    if isa(content, List):
+        content = content.members
+    return evaluate(_expand(content, True))
 
 def _init_global_env(env):
     """Initialize the global environment."""
@@ -24,14 +31,15 @@ def _init_global_env(env):
         'sqrt':math.sqrt, 'numerator':numerator, 'denominator':denominator,
         'floor':math.floor, 'ceiling':math.ceil, 'truncate':math.trunc,
         'round':round, 'zero?':lambda x: x==0, 'negative?':lambda x: x<0,
-        'positive?':lambda x: x>0, 'even?':lambda x: x%2==0, 'odd?':lambda x: x%2!=0,
+        'positive?':lambda x: x>0, 'even?':lambda x: x%2==0,
         'sin':math.sin, 'cos':math.cos, 'tan':math.tan, 'asin':math.asin,
         'acos':math.acos, 'atan':math.atan, 'make-rectangular':make_rectangular,
         'real-part':lambda x: x.real, 'imag-part':lambda x: x.imag,
         'magnitude':lambda x: math.sqrt(x.real*x.real+x.imag*x.imag),
         'complex?':is_complex, 'string->symbol':str2symbol, 'substring':substr,
         'string-append':append_str, 'symbol?':lambda x:isa(x,Symbol),
-        'reverse':reverse_list,
+        'reverse':reverse_list, 'procedure?':is_procedure,
+        'eval':s_eval, 'odd?':lambda x: x%2!=0,
     })
     return env
 
@@ -328,7 +336,6 @@ def evaluate(parts, env=global_env):
 def repl():
     """Read-evaluate-print-loop."""
     prompt = '> '
-    from tokenizer import Tokenizer
     tokenizer = Tokenizer()
     while True:
         try:
