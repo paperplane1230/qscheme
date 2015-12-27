@@ -1,6 +1,5 @@
 #!/usr/bin/env ipython3
 
-import sys
 import operator as op
 
 from tokenizer import Tokenizer
@@ -60,7 +59,7 @@ def _init_global_env(env):
         'boolean?':lambda x: isa(x,bool), 'integer?':is_int, 'lcm':lcm,
         'real?':is_rational,    # it seems in scheme rational? equals real?
         'number?':is_number, 'null?':lambda x: x==[], 'equal?':op.eq,
-        'string?':lambda x: isa(x,str), 'expt':math.pow, 'list-set!':list_set,
+        'string?':lambda x: isa(x,str) and not is_eof(x), 'expt':math.pow,
         'max': max, 'min':min, 'abs':abs, 'list':List, 'list-ref':list_ref,
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
@@ -78,7 +77,10 @@ def _init_global_env(env):
         'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
         'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply, 'map':s_map,
         'open-input-file':open, 'port?':lambda x: isa(x,type(sys.stdout)),
-        'input-port?':is_input,
+        'input-port?':is_input, 'read':read, 'list-set!':list_set,
+        'eof-object?':is_eof, 'close-input-port':close_input,
+        'open-output-file':lambda x: open(x,'w'), 'output-port?':is_output,
+        'write':write, 'close-output-port':close_output,
     })
     return env
 

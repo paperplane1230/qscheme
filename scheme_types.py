@@ -1,6 +1,7 @@
 #!/usr/bin/env ipython3
 
 import fractions
+import sys
 
 class Env(dict):
     """Context Environment."""
@@ -411,3 +412,40 @@ def is_input(port):
         return port.mode == 'r'
     except Exception:
         return False
+
+def is_output(port):
+    """Judge whether the port is an output port."""
+    try:
+        return port.mode == 'w'
+    except Exception:
+        return False
+
+def read(in_file):
+    """Read a line from the file."""
+    require_type(is_input(in_file), 'the parameter of read must be an input file')
+    txt = in_file.readline().lower()
+    while txt == '\n':
+        txt = in_file.readline().lower()
+    return txt.strip() if txt else Symbol('#!eof')
+
+def is_eof(eof):
+    """Judge whether it's an eof."""
+    return eof == Symbol('#!eof')
+
+def close_input(in_file):
+    """Close input file."""
+    require_type(is_input(in_file), 'the parameter must be an input file')
+    in_file.close()
+
+def write(content, port=sys.stdout):
+    """Write content to the port."""
+    require_type(is_output(port), 'the parameter of write must be an output file')
+    if port is sys.stdout:
+        display(content)
+        return
+    port.write(tostr(content))
+
+def close_output(out_file):
+    """Close the output file."""
+    require_type(is_output(out_file), 'the parameter must be an output file')
+    out_file.close()
