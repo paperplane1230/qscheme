@@ -155,13 +155,25 @@ def _expand(parts, can_define=False):
         cond, return_val = list(map(_expand,condition_val))
         bodies = list(map(_expand,bodies))
         return ['do', parms, inits, steps, cond, return_val, bodies]
-    # next branches share 'return' expression
+    if parts[0] == 'cond':
+        require(parts, len(parts)>1)
+        require(parts, all(isa(i,list) and i and i[0]!='else' for i in parts[1:-1]),
+                'ill-formed clause in cond')
+        require(parts, isa(parts[-1],list) and parts[-1], 'ill-formed clause in cond')
+        if parts[-1][0] != 'else':
+            parts.append(['else',None])
+        result = ['cond']
+        for cond in parts[1:]:
+            result.append(list(map(_expand,cond)))
+        return result
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
         require(parts, len(parts)==4)
-        can_define = False
-    elif parts[0] == 'begin':
+        bodies = list(map(_expand, parts[1:]))
+        return ['cond', [bodies[0],bodies[1]], ['else',bodies[2]]]
+    # next branches share 'return' expression
+    if parts[0] == 'begin':
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
@@ -339,7 +351,17 @@ def evaluate(parts, env=global_env):
                 raise e
             env[symbol] = evaluate(value, env)
             return oldVal
-        if parts[0] == 'do':
+        if parts[0] == 'cond':
+            for cond in parts[1:-1]:
+                if evaluate(cond[0], env):
+                    parts = cond[1:]
+                    parts.insert(0, 'begin')
+                    if len(parts) == 1:
+                        parts.append(None)
+                    return evaluate(parts, env)
+            parts = parts[-1][1:]
+            parts.insert(0, 'begin')
+        elif parts[0] == 'do':
             _, parms, inits, steps, cond, ret_val, bodies = parts
             env = Env(outer=env)
             init_vals = [evaluate(i, env) for i in inits]
@@ -350,9 +372,9 @@ def evaluate(parts, env=global_env):
                 new_vals = [evaluate(i, env) for i in steps]
                 env.update(zip(parms,new_vals))
             parts = ret_val
-        elif parts[0] == 'if':
-            _, cond, branch1, branch2 = parts
-            parts = branch1 if evaluate(cond, env) else branch2
+        # elif parts[0] == 'if':
+        #     _, cond, branch1, branch2 = parts
+        #     parts = branch1 if evaluate(cond, env) else branch2
         elif parts[0] == 'begin':
             for i in parts[1:-1]:
                 evaluate(i, env)
