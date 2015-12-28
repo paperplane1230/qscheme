@@ -67,7 +67,7 @@ def _init_global_env(env):
         'sqrt':math.sqrt, 'numerator':numerator, 'denominator':denominator,
         'floor':math.floor, 'ceiling':math.ceil, 'truncate':math.trunc,
         'round':round, 'zero?':lambda x: x==0, 'negative?':lambda x: x<0,
-        'positive?':lambda x: x>0, 'even?':lambda x: x%2==0,
+        'positive?':lambda x: x>0, 'even?':lambda x: x%2==0, 'or':s_or,
         'sin':math.sin, 'cos':math.cos, 'tan':math.tan, 'asin':math.asin,
         'acos':math.acos, 'atan':math.atan, 'make-rectangular':make_rectangular,
         'real-part':lambda x: x.real, 'imag-part':lambda x: x.imag,
@@ -78,7 +78,7 @@ def _init_global_env(env):
         'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply, 'map':s_map,
         'open-input-file':open, 'port?':lambda x: isa(x,type(sys.stdout)),
         'input-port?':is_input, 'read':read, 'list-set!':list_set,
-        'eof-object?':is_eof, 'close-input-port':close_input,
+        'eof-object?':is_eof, 'close-input-port':close_input, 'and':s_and,
         'open-output-file':lambda x: open(x,'w'), 'output-port?':is_output,
         'write':write, 'close-output-port':close_output,
     })
@@ -116,8 +116,7 @@ def _expand(parts, can_define=False):
         require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
             or isa(parms, Symbol), 'illegal lambda argument list'))
         # body is a list even there's only one expression to be evaluated
-        body = parts[2:]
-        body.insert(0, 'begin')
+        body = ['begin'] + parts[2:]
         return ['lambda', parms, _expand(body,can_define)]
     if parts[0] == 'set!':
         require(parts, len(parts)==3)
@@ -195,7 +194,16 @@ def _expand(parts, can_define=False):
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
+    try:
+        if parts[0] not in _can_no_args:
+            require(parts, len(parts)>1)
+    except TypeError:
+        None
     return [_expand(i, can_define) for i in parts]
+
+_can_no_args = {
+        'and', 'or',
+}
 
 def _list_cat(part1, part2):
     """Catenate two parts into a list."""
@@ -373,11 +381,9 @@ def evaluate(parts, env=global_env):
             expr = evaluate(parts[1], env)
             for case in parts[2:-1]:
                 if expr in evaluate(case[0],env):
-                    parts = case[1:]
-                    parts.insert(0, 'begin')
+                    parts = ['begin'] + case[1:]
                     return evaluate(parts, env)
-            parts = parts[-1][1:]
-            parts.insert(0, 'begin')
+            parts = ['begin'] + parts[-1][1:]
         elif parts[0] == 'cond':
             for cond in parts[1:-1]:
                 do_branch = evaluate(cond[0], env)
@@ -388,8 +394,7 @@ def evaluate(parts, env=global_env):
                         return do_branch
                     parts.insert(0, 'begin')
                     return evaluate(parts, env)
-            parts = parts[-1][1:]
-            parts.insert(0, 'begin')
+            parts = ['begin'] + parts[-1][1:]
         elif parts[0] == 'do':
             _, parms, inits, steps, cond, ret_val, bodies = parts
             env = Env(outer=env)

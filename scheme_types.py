@@ -449,3 +449,22 @@ def close_output(out_file):
     """Close the output file."""
     require_type(is_output(out_file), 'the parameter must be an output file')
     out_file.close()
+
+def s_or(*args):
+    """Logical or."""
+    result = False
+    for i in args:
+        result = result or i
+        if result:
+            break
+    return result
+
+def s_and(*args):
+    """Logical and."""
+    result = True
+    for i in args:
+        result = result and i
+        if not result:
+            break
+    return result
+
