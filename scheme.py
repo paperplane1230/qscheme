@@ -157,23 +157,33 @@ def _expand(parts, can_define=False):
         return ['do', parms, inits, steps, cond, return_val, bodies]
     if parts[0] == 'cond':
         require(parts, len(parts)>1)
-        require(parts,
-            all(isa(i,list) and (i or not parts[1:-1]) and i[0]!='else' for i in parts[1:-1]),
-                'ill-formed clause in cond')
+        if parts[1:-1]:
+            require(parts, all(isa(i,list) and i and i[0]!='else' for i in parts[1:-1]),
+                    'ill-formed clause in cond')
         require(parts, isa(parts[-1],list) and parts[-1], 'ill-formed clause in cond')
         if parts[-1][0] != 'else':
             parts.append(['else',None])
         else:
             require(parts, len(parts[-1])>1)
-        result = ['cond']
         for cond in parts[1:]:
-            result.append(list(map(_expand,cond)))
-        return result
-    # if parts[0] == 'case':
-    #     require(parts, len(parts)>2)
-    #     require(parts,
-    #             all(isa(i,list) and len(i)>1 and isa(i[0],list) for i in parts[1:-1]),
-    #             'ill-formed clause in case')
+            cond = list(map(_expand,cond))
+        return parts
+    if parts[0] == 'case':
+        require(parts, len(parts)>2)
+        if parts[2:-1]:
+            require(parts,
+                all(isa(i,list) and len(i)>1 and isa(i[0],list) for i in parts[2:-1]),
+                    'ill-formed clause in case')
+        require(parts, isa(parts[-1],list) and len(parts[-1])>1
+                    and (isa(parts[-1][0],list) or parts[-1][0]=='else'),
+                'ill-formed clause in case')
+        if parts[-1][0] != 'else':
+            parts.append(['else',None])
+        parts[1] = _expand(parts[1])
+        for case in parts[2:]:
+            case[0] = [quotes["'"], case[0]]
+            case[1:] = list(map(_expand,case[1:]))
+        return parts
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
@@ -359,10 +369,20 @@ def evaluate(parts, env=global_env):
                 raise e
             env[symbol] = evaluate(value, env)
             return oldVal
-        if parts[0] == 'cond':
+        if parts[0] == 'case':
+            expr = evaluate(parts[1], env)
+            for case in parts[2:-1]:
+                if expr in evaluate(case[0],env):
+                    parts = case[1:]
+                    parts.insert(0, 'begin')
+                    return evaluate(parts, env)
+            parts = parts[-1][1:]
+            parts.insert(0, 'begin')
+        elif parts[0] == 'cond':
             for cond in parts[1:-1]:
                 do_branch = evaluate(cond[0], env)
-                if do_branch:
+                # (cond ('() 3)) is valid
+                if do_branch or isa(do_branch, list):
                     parts = cond[1:]
                     if not parts:
                         return do_branch
