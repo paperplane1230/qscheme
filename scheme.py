@@ -157,15 +157,23 @@ def _expand(parts, can_define=False):
         return ['do', parms, inits, steps, cond, return_val, bodies]
     if parts[0] == 'cond':
         require(parts, len(parts)>1)
-        require(parts, all(isa(i,list) and i and i[0]!='else' for i in parts[1:-1]),
+        require(parts,
+            all(isa(i,list) and (i or not parts[1:-1]) and i[0]!='else' for i in parts[1:-1]),
                 'ill-formed clause in cond')
         require(parts, isa(parts[-1],list) and parts[-1], 'ill-formed clause in cond')
         if parts[-1][0] != 'else':
             parts.append(['else',None])
+        else:
+            require(parts, len(parts[-1])>1)
         result = ['cond']
         for cond in parts[1:]:
             result.append(list(map(_expand,cond)))
         return result
+    # if parts[0] == 'case':
+    #     require(parts, len(parts)>2)
+    #     require(parts,
+    #             all(isa(i,list) and len(i)>1 and isa(i[0],list) for i in parts[1:-1]),
+    #             'ill-formed clause in case')
     if parts[0] == 'if':
         if len(parts) == 3:
             parts.append(None)
@@ -353,11 +361,12 @@ def evaluate(parts, env=global_env):
             return oldVal
         if parts[0] == 'cond':
             for cond in parts[1:-1]:
-                if evaluate(cond[0], env):
+                do_branch = evaluate(cond[0], env)
+                if do_branch:
                     parts = cond[1:]
+                    if not parts:
+                        return do_branch
                     parts.insert(0, 'begin')
-                    if len(parts) == 1:
-                        parts.append(None)
                     return evaluate(parts, env)
             parts = parts[-1][1:]
             parts.insert(0, 'begin')
@@ -372,9 +381,6 @@ def evaluate(parts, env=global_env):
                 new_vals = [evaluate(i, env) for i in steps]
                 env.update(zip(parms,new_vals))
             parts = ret_val
-        # elif parts[0] == 'if':
-        #     _, cond, branch1, branch2 = parts
-        #     parts = branch1 if evaluate(cond, env) else branch2
         elif parts[0] == 'begin':
             for i in parts[1:-1]:
                 evaluate(i, env)
