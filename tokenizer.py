@@ -6,10 +6,10 @@ class Tokenizer:
     def __init__(self, file=sys.stdin):
         """Bind a file stream to read."""
         import re
-        self.__file = file
-        self.__line = ''
-        self.__regex = re.compile(self.__generate_pattern())
-    def __yield_patterns(self):
+        self._file = file
+        self._line = ''
+        self._regex = re.compile(self._generate_pattern())
+    def _yield_patterns(self):
         """Yield patterns of regular expressions."""
         # comment
         yield r""";.*"""
@@ -21,13 +21,13 @@ class Tokenizer:
         yield r"""[('`,)]"""
         # normal
         yield r"""[^\s('"`,;)]*"""
-    def __generate_pattern(self):
+    def _generate_pattern(self):
         """Generate pattern for scheme."""
         result = []
         # space
         result.append(r"""\s*""")
         result.append('(')
-        result.append('|'.join(self.__yield_patterns()))
+        result.append('|'.join(self._yield_patterns()))
         result.append(')')
         # remaining
         result.append(r"""(.*)""")
@@ -35,14 +35,14 @@ class Tokenizer:
     def next_token(self):
         """Get the next token."""
         while True:
-            if self.__line == '':
-                self.__line = self.__file.readline()
-            if self.__line == '':
+            if self._line == '':
+                self._line = self._file.readline()
+            if self._line == '':
                 return None
-            token, self.__line = self.__regex.match(self.__line).groups()
+            token, self._line = self._regex.match(self._line).groups()
             if token != '':
                 return token
     def empty(self):
         """Judge whether there are more than one expressions in a line."""
-        return self.__line == '' or self.__line.isspace()
+        return self._line == '' or self._line.isspace()
 
