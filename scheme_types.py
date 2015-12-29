@@ -7,7 +7,7 @@ class Env(dict):
     """Context Environment."""
     def __init__(self, parms=(), args=(), outer=None):
         """Initialize the environment with specific parameters."""
-        self.__outer = outer
+        self._outer = outer
         if isa(parms, Symbol):
         # (lambda x (...))
             self.update({parms:list(args)})
@@ -20,80 +20,69 @@ class Env(dict):
         """Find operator in the environment."""
         if op in self:
             return self[op]
-        if self.__outer is None:
+        if self._outer is None:
             raise LookupError('unbound '+op)
-        return self.__outer.find(op)
+        return self._outer.find(op)
 
 class Procedure:
     """Class for procedure."""
     def __init__(self, parms, body, env):
         """Initialize a procedure with specific parameters, arguments and environment."""
-        self.__parms = parms
-        self.__body = body
-        self.__env = env
-    @property
-    def env(self):
-        """Get context environment."""
-        return self.__env
-    @property
-    def body(self):
-        """Get body."""
-        return self.__body
-    @property
-    def parms(self):
-        """Get parameters."""
-        return self.__parms
+        self.parms = parms
+        self.body = body
+        self.env = env
 
 class Symbol(str):
     """Class for symbol."""
     pass
 
+def _property(attr):
+    """Get attribute of a class. It's a closure."""
+    name = '_' + attr
+    @property
+    def prop(self):
+        """Get the specific attribute."""
+        return getattr(self, name)
+    @prop.setter
+    def prop(self, value):
+        """Set the attribute."""
+        setattr(self, name, value)
+        if isa(self, Pair):
+            self.update_str()
+    return prop
+
 class Pair:
     """Class for pair in scheme(created by function cons)."""
-    def __init__(self, first, second):
+    car = _property('car')
+    cdr = _property('cdr')
+    def __init__(self, car, cdr):
         """Construct a pair with given data."""
-        self.__first = first
-        self.__second = second
         # be the cache for string form of this pair
-        self.__str = ''
-        self.__update_str()
-    def __rm_outer(self, symbol):
+        self._str = ''
+        # here can't use prop to update _str
+        # because _car and _cdr aren't constructed
+        self._car = car
+        self._cdr = cdr
+        # invoke update_str() manually only here
+        self.update_str()
+    def _rm_outer(self, symbol):
         """Remove outer boundary of second part when printing."""
         if isa(symbol, Pair) or isa(symbol, List):
             return ' ' + str(symbol)[1:-1]
         # deal with situation where cdr is '()
-        if self.__second == []:
+        if self.cdr == []:
             return ''
         return ' . ' + tostr(symbol)
-    def __update_str(self):
+    def update_str(self):
         """Format for printing."""
-        self.__str = ''.join(['(', tostr(self.__first),
-                self.__rm_outer(self.__second), ')'])
+        self._str = ''.join(['(',tostr(self.car),self._rm_outer(self.cdr),')'])
     def __str__(self):
         """Return string form."""
-        return self.__str
+        return self._str
     def __eq__(self, pair):
         """Compare two pairs."""
         require_type(isa(pair, Pair), "the two type can't be compared")
-        return self.__first == pair.car and self.__second == pair.cdr
-    @property
-    def car(self):
-        """Return the first part."""
-        return self.__first
-    @property
-    def cdr(self):
-        """Return the second part."""
-        return self.__second
-    @car.setter
-    def car(self, value):
-        """Set the first element."""
-        self.__first = value
-        self.__update_str()
-    @cdr.setter
-    def cdr(self, value):
-        """Set the second element."""
-        self.__second = value
-        self.__update_str()
+        return self.car == pair.car and self.cdr == pair.cdr
 
 class List:
     """Class for list."""
@@ -101,9 +90,9 @@ class List:
         """Construct a list in scheme with members in a list."""
         require_type(isa(members, list),
                 'the parameter of list must be a list of objects')
-        self.__members = members
-        self.__cons = self.__list(self.__members)
-    def __list(self, exprs):
+        self.members = members
+        self.pair = self._list(members)
+    def _list(self, exprs):
         """Construct a list with method cons."""
         require(exprs, len(exprs)!=0)
         result = Pair(exprs[-1], [])
@@ -112,21 +101,21 @@ class List:
         return result
     def __str__(self):
         """Format for printing."""
-        return str(self.__cons)
+        return str(self.pair)
     def __len__(self):
         """Length of list."""
-        return len(self.__members)
+        return len(self.members)
     def __eq__(self, s_list):
         """Compare two lists."""
         require_type(isa(s_list, List), "the two type can't be compared")
-        return self.__cons == s_list.pair
+        return self.pair == s_list.pair
     def __getitem__(self, i):
         """Get member by index."""
-        return self.__members[i]
+        return self.members[i]
     def __setitem__(self, key, val):
         """Set member by index."""
-        self.__members[key] = val
-        pair = self.__cons
+        self.members[key] = val
+        pair = self.pair
         for i in range(key):
             pair = pair.cdr
         pair.car = val
@@ -139,29 +128,21 @@ class List:
             None
         raise TypeError("+ can't be applied between list and "+str(type(right)))
     @property
-    def members(self):
-        """Get the list inside."""
-        return self.__members
-    @property
-    def pair(self):
-        """Return the pair inside it."""
-        return self.__cons
-    @property
     def car(self):
         """Return the first part."""
-        return self.__cons.car
+        return self.pair.car
     @property
     def cdr(self):
         """Return the second part."""
-        return self.__cons.cdr
+        return self.pair.cdr
     @car.setter
     def car(self, value):
         """Set the first element."""
-        self.__cons.car = value
+        self.pair.car = value
     @cdr.setter
     def cdr(self, value):
         """Set the second element."""
-        self.__cons.cdr = value
+        self.pair.cdr = value
 
 def _pair2list(pair):
     """Convert a pair to list."""
