@@ -108,7 +108,9 @@ def _expand(parts, can_define=False):
             return _expand(['define',name,['lambda', parms]+parts[2:]], can_define)
         require(parts, len(parts)==3)
         require(parts, isa(header, Symbol), "can only define a symbol")
-        parts[2] = _expand(parts[2])
+        if not (isa(parts[2], list) and parts[2] and parts[2][0] == 'lambda'):
+            can_define = False
+        parts[2] = _expand(parts[2], can_define)
         return parts
     if parts[0] == 'lambda':
         require(parts, len(parts)>=3)
@@ -194,16 +196,7 @@ def _expand(parts, can_define=False):
         if len(parts) == 1:
             return parts + [None]
     # (proc args...)
-    try:
-        if parts[0] not in _can_no_args:
-            require(parts, len(parts)>1)
-    except TypeError:
-        None
     return [_expand(i, can_define) for i in parts]
-
-_can_no_args = {
-        'and', 'or',
-}
 
 def _list_cat(part1, part2):
     """Catenate two parts into a list."""
