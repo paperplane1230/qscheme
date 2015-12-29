@@ -19,7 +19,7 @@ class Env(dict):
     def find(self, op):
         """Find operator in the environment."""
         if op in self:
-            return self[op]
+            return self
         if self._outer is None:
             raise LookupError('unbound '+op)
         return self._outer.find(op)
@@ -143,6 +143,12 @@ class List:
     def cdr(self, value):
         """Set the second element."""
         self.pair.cdr = value
+
+class Promise:
+    """Class for lazy binding."""
+    def __init__(self, exprs):
+        """Construct a promise with its content."""
+        self.exprs = exprs
 
 def _pair2list(pair):
     """Convert a pair to list."""

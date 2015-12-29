@@ -77,10 +77,10 @@ def _init_global_env(env):
         'reverse':reverse_list, 'procedure?':is_procedure, 'load':load_file,
         'eval':s_eval, 'odd?':lambda x: x%2!=0, 'apply':s_apply, 'map':s_map,
         'open-input-file':open, 'port?':lambda x: isa(x,type(sys.stdout)),
-        'input-port?':is_input, 'read':read, 'list-set!':list_set,
+        'input-port?':is_input, 'read':read, 'list-set!':list_set, 'true': True,
         'eof-object?':is_eof, 'close-input-port':close_input, 'and':s_and,
         'open-output-file':lambda x: open(x,'w'), 'output-port?':is_output,
-        'write':write, 'close-output-port':close_output,
+        'write':write, 'close-output-port':close_output, 'false':False,
     })
     return env
 
@@ -137,8 +137,7 @@ def _expand(parts, can_define=False):
         # _expand in lambda will expand bodies
         bodies = parts[2:]
         parms, values = zip(*binds)
-        args = list(map(_expand,values))
-        return _expand([['lambda',list(parms)]+bodies]+args, can_define)
+        return _expand([['lambda',list(parms)]+bodies]+list(values), can_define)
     if parts[0] == 'do':
         require(parts, len(parts)>2)
         binds = parts[1]
@@ -168,6 +167,12 @@ def _expand(parts, can_define=False):
             require(parts, len(parts[-1])>1)
         for cond in parts[1:]:
             cond = list(map(_expand,cond))
+        return parts
+    if parts[0] == 'delay' or parts[0] == 'force':
+        require(parts, len(parts)==2)
+        if parts[0] == 'delay':
+            parts[1] = [Symbol('memo-proc'),['lambda',[],parts[1]]]
+        parts[1] = _expand(parts[1])
         return parts
     if parts[0] == 'case':
         require(parts, len(parts)>2)
@@ -348,7 +353,7 @@ def evaluate(parts, env=global_env):
     """Evaluate value of parts."""
     while True:
         if isa(parts, Symbol):
-            return env.find(parts)
+            return env.find(parts)[parts]
         if not isa(parts, list):
             return parts
         if not parts:
@@ -364,13 +369,16 @@ def evaluate(parts, env=global_env):
             return Procedure(parts[1], parts[2], env)
         if parts[0] == 'set!':
             _, symbol, value = parts
-            try:
-                oldVal = env.find(symbol)
-            except KeyError as e:
-                raise e
-            env[symbol] = evaluate(value, env)
+            oldVal = env.find(symbol)[symbol]
+            env.find(symbol)[symbol] = evaluate(value, env)
             return oldVal
-        if parts[0] == 'case':
+        if parts[0] == 'delay':
+            return Promise(parts[1])
+        if parts[0] == 'force':
+            parts[1] = evaluate(parts[1], env)
+            require_type(isa(parts[1],Promise), 'parameter of force must be a promise')
+            parts = [parts[1].exprs]
+        elif parts[0] == 'case':
             expr = evaluate(parts[1], env)
             for case in parts[2:-1]:
                 if expr in evaluate(case[0],env):
@@ -451,5 +459,26 @@ def repl(in_from=sys.stdin):
         except Exception as e:
             print("{0}: {1}".format(type(e).__name__, e))
 
+# use this to implement delay
+_pre_procedure = """
+    (define (memo-proc proc)
+        (let ((already-run? #f) (result #f))
+            (lambda ()
+                (if (not already-run?)
+                (begin (set! result (proc))
+                        (set! already-run? #t)
+                        result)
+                result))))
+"""
+
+try:
+    from io import StringIO
+    evaluate(parse(Tokenizer(StringIO(_pre_procedure))))
+except TypeError:
+    # make it compatible with python2 when debugging with winpdb
+    from StringIO import StringIO
+    evaluate(parse(Tokenizer(StringIO(_pre_procedure))))
+
 if __name__ == '__main__':
     repl()
+
