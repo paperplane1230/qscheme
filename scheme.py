@@ -131,13 +131,18 @@ def _expand(parts, can_define=False):
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
         return _expand_quasiquote(parts[1])
-    if parts[0] == 'let':
+    if parts[0] == 'let' or parts[0] == 'let*':
         require(parts, len(parts)>2)
         binds = parts[1]
         require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
                     for i in binds), 'illegal binding list')
         # _expand in lambda will expand bodies
         bodies = parts[2:]
+        if parts[0] == 'let*':
+            new_form = [Symbol('let'), [binds[-1]]] + bodies
+            for i in reversed(binds[:-1]):
+                new_form = [Symbol('let'), [i], new_form]
+            return _expand(new_form, can_define)
         parms, values = zip(*binds)
         return _expand([['lambda',list(parms)]+bodies]+list(values), can_define)
     if parts[0] == 'do':

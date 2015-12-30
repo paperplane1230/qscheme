@@ -98,8 +98,8 @@ class List:
         """Construct a list with method cons."""
         require(exprs, len(exprs)!=0)
         result = Pair(exprs[-1], [])
-        for i in reversed(range(len(exprs)-1)):
-            result = Pair(exprs[i], result)
+        for i in reversed(exprs[:-1]):
+            result = Pair(i, result)
         return result
     def __str__(self):
         """Format for printing."""
@@ -174,8 +174,8 @@ def append(*values):
     last = appended.pop()
     members = s_list.members + appended
     result = Pair(members[-1], last)
-    for i in reversed(range(len(members)-1)):
-        result = Pair(members[i], result)
+    for i in reversed(members[:-1]):
+        result = Pair(i, result)
     return result
 
 def is_list(s_list):
