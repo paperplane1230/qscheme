@@ -270,7 +270,9 @@ def _read(tokenizer):
                 token = tokenizer.next_token()
                 if token == ')':
                     return members
-                members.append(_read_ahead(token))
+                new_token = _read_ahead(token)
+                if new_token != ';':
+                    members.append(new_token)
         else:
             return transform(token)
     # body of parse

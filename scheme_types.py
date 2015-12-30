@@ -233,6 +233,8 @@ def transform(token):
         return False
     if token[0] == '"':
         return bytes(token[1:-1], "utf-8").decode('unicode-escape')
+    if token.startswith(';'):
+        return ';'
     if token.startswith('#b'):
         return int(token[2:], 2)
     if token.startswith('#o'):
