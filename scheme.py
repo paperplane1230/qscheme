@@ -81,6 +81,8 @@ def _init_global_env(env):
         'eof-object?':is_eof, 'close-input-port':close_input, 'and':s_and,
         'open-output-file':lambda x: open(x,'w'), 'output-port?':is_output,
         'write':write, 'close-output-port':close_output, 'false':False,
+        'promise?':lambda x: isa(x,Promise), 'promise-forced?':promise_forced,
+        'promise-value':promise_value,
     })
     return env
 
@@ -171,6 +173,7 @@ def _expand(parts, can_define=False):
     if parts[0] == 'delay' or parts[0] == 'force':
         require(parts, len(parts)==2)
         if parts[0] == 'delay':
+            # (delay expr) => (delay (memo-proc (lambda () expr)))
             parts[1] = [Symbol('memo-proc'),['lambda',[],parts[1]]]
         parts[1] = _expand(parts[1])
         return parts
@@ -373,7 +376,7 @@ def evaluate(parts, env=global_env):
             env.find(symbol)[symbol] = evaluate(value, env)
             return oldVal
         if parts[0] == 'delay':
-            return Promise(parts[1])
+            return Promise(evaluate(parts[1],env))
         if parts[0] == 'force':
             parts[1] = evaluate(parts[1], env)
             require_type(isa(parts[1],Promise), 'parameter of force must be a promise')

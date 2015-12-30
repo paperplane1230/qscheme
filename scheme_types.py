@@ -18,6 +18,8 @@ class Env(dict):
             self.update(zip(parms, args))
     def find(self, op):
         """Find operator in the environment."""
+        # return the environment itself so that invoker can update information
+        # in specific environment
         if op in self:
             return self
         if self._outer is None:
@@ -455,3 +457,16 @@ def s_and(*args):
             break
     return result
 
+def promise_forced(promise):
+    """Judge whether the promise has been forced."""
+    require_type(isa(promise,Promise),
+            'the parameter of promise_forced must be a Promise')
+    return promise.exprs.env.find(Symbol('already-run?'))['already-run?']
+
+def promise_value(promise):
+    """Return forced value in promise else raise exception."""
+    require_type(isa(promise,Promise),
+            'the parameter of promise_forced must be a Promise')
+    if promise_forced(promise):
+        return promise.exprs.env.find(Symbol('result'))['result']
+    raise RuntimeError('the promise has not been forced')
