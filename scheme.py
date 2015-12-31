@@ -131,19 +131,32 @@ def _expand(parts, can_define=False):
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
         return _expand_quasiquote(parts[1])
-    if parts[0] == 'let' or parts[0] == 'let*':
+    if parts[0] == 'let' or parts[0] == 'let*' or parts[0] == 'letrec':
         require(parts, len(parts)>2)
         binds = parts[1]
         require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
                     for i in binds), 'illegal binding list')
         # _expand in lambda will expand bodies
         bodies = parts[2:]
+        # convert let* and letrec into equal let form
         if parts[0] == 'let*':
             new_form = [Symbol('let'), [binds[-1]]] + bodies
             for i in reversed(binds[:-1]):
                 new_form = [Symbol('let'), [i], new_form]
             return _expand(new_form, can_define)
-        parms, values = zip(*binds)
+        if parts[0] == 'letrec':
+            outer, inner = [[Symbol('let')] for i in range(2)]
+            outer_bind, inner_bind = [[] for i in range(2)]
+            for name, val in binds:
+                outer_bind.append([name,None])
+                inner_bind.append([Symbol(name+'.1'),val])
+                inner.append([Symbol('set!'),name,Symbol(name+'.1')])
+            inner += bodies
+            inner.insert(1, inner_bind)
+            outer.append(outer_bind)
+            outer.append(inner)
+            return _expand(outer, can_define)
+        parms, values = zip(*binds) if binds else ([], [])
         return _expand([['lambda',list(parms)]+bodies]+list(values), can_define)
     if parts[0] == 'do':
         require(parts, len(parts)>2)

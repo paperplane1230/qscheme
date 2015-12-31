@@ -251,8 +251,8 @@ def transform(token):
         except ValueError:
             try:
                 result = complex(token.replace('i', 'j'))
-                # user can't write a+bj
-                if token.find('j') >= 0:
+                # user can't write a+bj and form like i, 2i, 3i where no '+' appers
+                if token.find('j') >= 0 or token.find('+') < 0:
                     return Symbol(token.lower())
                 return result
             except ValueError:
