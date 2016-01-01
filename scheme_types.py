@@ -83,6 +83,8 @@ class Pair:
         return self._str
     def __eq__(self, pair):
         """Compare two pairs."""
+        if isa(pair, list) and pair == []:
+            return False
         require_type(isa(pair, Pair), "the two type can't be compared")
         return self.car == pair.car and self.cdr == pair.cdr
 
@@ -109,6 +111,8 @@ class List:
         return len(self.members)
     def __eq__(self, s_list):
         """Compare two lists."""
+        if isa(s_list, list) and s_list == []:
+            return self.members == []
         require_type(isa(s_list, List), "the two type can't be compared")
         return self.pair == s_list.pair
     def __getitem__(self, i):

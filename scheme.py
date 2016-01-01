@@ -96,8 +96,7 @@ def _expand(parts, can_define=False):
         require(parts, len(parts)==2)
         return parts
     if parts[0] == 'define':
-        if not can_define:
-            raise SyntaxError("can't bind name in null syntactic environment")
+        require(can_define, "can't bind name in null syntactic environment")
         if len(parts) == 2 and not isa(parts[1], list):
             parts.append(None)
         require(parts, len(parts)>=3)
@@ -109,7 +108,7 @@ def _expand(parts, can_define=False):
             #   => (define func (lambda (parms...) body))
             return _expand(['define',name,['lambda', parms]+parts[2:]], can_define)
         require(parts, len(parts)==3)
-        require(parts, isa(header, Symbol), "can only define a symbol")
+        require_type(isa(header, Symbol), "can only define a symbol")
         if not (isa(parts[2], list) and parts[2] and parts[2][0] == 'lambda'):
             can_define = False
         parts[2] = _expand(parts[2], can_define)
@@ -117,40 +116,56 @@ def _expand(parts, can_define=False):
     if parts[0] == 'lambda':
         require(parts, len(parts)>=3)
         parms = parts[1]
-        require(parms, (isa(parms, list) and all(isa(i, Symbol) for i in parms)
-            or isa(parms, Symbol), 'illegal lambda argument list'))
+        require_type((isa(parms, list) and all(isa(i, Symbol) for i in parms))
+            or isa(parms, Symbol), 'illegal lambda argument list')
         # body is a list even there's only one expression to be evaluated
         body = ['begin'] + parts[2:]
         return ['lambda', parms, _expand(body,can_define)]
     if parts[0] == 'set!':
         require(parts, len(parts)==3)
         symbol = parts[1]
-        require(parts, isa(symbol, Symbol), "can set! only a symbol")
+        require_type(isa(symbol, Symbol), "can set! only a symbol")
         parts[2] = _expand(parts[2])
         return parts
     if parts[0] == 'quasiquote':
         require(parts, len(parts)==2)
         return _expand_quasiquote(parts[1])
+    # named let
+    if parts[0] == 'nlet':
+        require(parts, len(parts)>3)
+        name = parts[1]
+        require_type(isa(name,Symbol), 'the first parameter of nlet must be a symbol')
+        binds = parts[2]
+        require_type(all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
+                    for i in binds), 'illegal binding list')
+        bodies = parts[3:]
+        parms, values = zip(*binds) if binds else ([], [])
+        letrec = ['letrec', name]
+        new_binds = [name,['lambda',list(parms)]+bodies]
+        letrec.insert(1, [new_binds])
+        values = list(values)
+        values.insert(0, letrec)
+        return _expand(values, can_define)
     if parts[0] == 'let' or parts[0] == 'let*' or parts[0] == 'letrec':
         require(parts, len(parts)>2)
         binds = parts[1]
-        require(parts, all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
+        require_type(all(isa(i, list) and len(i)==2 and isa(i[0], Symbol)
                     for i in binds), 'illegal binding list')
         # _expand in lambda will expand bodies
         bodies = parts[2:]
         # convert let* and letrec into equal let form
         if parts[0] == 'let*':
-            new_form = [Symbol('let'), [binds[-1]]] + bodies
+            new_form = ['let', [binds[-1]]] + bodies
             for i in reversed(binds[:-1]):
-                new_form = [Symbol('let'), [i], new_form]
+                new_form = ['let', [i], new_form]
             return _expand(new_form, can_define)
         if parts[0] == 'letrec':
-            outer, inner = [[Symbol('let')] for i in range(2)]
+            outer, inner = [['let'] for i in range(2)]
             outer_bind, inner_bind = [[] for i in range(2)]
             for name, val in binds:
                 outer_bind.append([name,None])
                 inner_bind.append([Symbol(name+'.1'),val])
-                inner.append([Symbol('set!'),name,Symbol(name+'.1')])
+                inner.append(['set!',name,Symbol(name+'.1')])
             inner += bodies
             inner.insert(1, inner_bind)
             outer.append(outer_bind)
@@ -161,10 +176,10 @@ def _expand(parts, can_define=False):
     if parts[0] == 'do':
         require(parts, len(parts)>2)
         binds = parts[1]
-        require(parts, all(isa(i, list) and len(i)==3 and isa(i[0], Symbol)
+        require_type(all(isa(i, list) and len(i)==3 and isa(i[0], Symbol)
                     for i in binds), 'illegal binding list')
         condition_val = parts[2]
-        require(parts, isa(condition_val,list) and condition_val,
+        require_type(isa(condition_val,list) and condition_val,
                 'do must have a condition to stop')
         if len(condition_val) == 1:
             condition_val.append(None)
@@ -178,9 +193,9 @@ def _expand(parts, can_define=False):
     if parts[0] == 'cond':
         require(parts, len(parts)>1)
         if parts[1:-1]:
-            require(parts, all(isa(i,list) and i and i[0]!='else' for i in parts[1:-1]),
+            require_type(all(isa(i,list) and i and i[0]!='else' for i in parts[1:-1]),
                     'ill-formed clause in cond')
-        require(parts, isa(parts[-1],list) and parts[-1], 'ill-formed clause in cond')
+        require_type(isa(parts[-1],list) and parts[-1], 'ill-formed clause in cond')
         if parts[-1][0] != 'else':
             parts.append(['else',None])
         else:
@@ -198,10 +213,9 @@ def _expand(parts, can_define=False):
     if parts[0] == 'case':
         require(parts, len(parts)>2)
         if parts[2:-1]:
-            require(parts,
-                all(isa(i,list) and len(i)>1 and isa(i[0],list) for i in parts[2:-1]),
-                    'ill-formed clause in case')
-        require(parts, isa(parts[-1],list) and len(parts[-1])>1
+            if not all(isa(i,list) and len(i)>1 and isa(i[0],list) for i in parts[2:-1]):
+                require_type(False, 'ill-formed clause in case')
+        require_type(isa(parts[-1],list) and len(parts[-1])>1
                     and (isa(parts[-1][0],list) or parts[-1][0]=='else'),
                 'ill-formed clause in case')
         if parts[-1][0] != 'else':
@@ -262,10 +276,11 @@ def _expand_quasiquote(parts):
     result = [_break_list, result]
     return result
 
-quotes = {
-        "'":Symbol('quote'), '`':Symbol('quasiquote'), ',':Symbol('unquote'),
-        ',@':Symbol('unquote-splicing'),
+_quotes = {
+        "'":'quote', '`':'quasiquote', ',':'unquote', ',@':'unquote-splicing',
 }
+
+quotes = {s:Symbol(_quotes[s]) for s in _quotes}
 
 def parse(tokenizer):
     """Parse scheme statements."""
