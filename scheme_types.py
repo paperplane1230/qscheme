@@ -1,4 +1,4 @@
-#!/usr/bin/env ipython3
+#!/usr/bin/env python3
 
 import fractions
 import sys
@@ -12,9 +12,8 @@ class Env(dict):
         # (lambda x (...))
             self.update({parms:list(args)})
         else:
-            if len(parms) != len(args):
-                raise TypeError('expected {0}, given {1}'
-                        .format(tostr(parms), tostr(args)))
+            require_type(len(parms)==len(args),
+                    'expected {0}, given {1}'.format(tostr(parms),tostr(args)))
             self.update(zip(parms, args))
     def find(self, op):
         """Find operator in the environment."""
@@ -476,3 +475,4 @@ def promise_value(promise):
     if promise_forced(promise):
         return promise.exprs.env.find(Symbol('result'))['result']
     raise RuntimeError('the promise has not been forced')
+
