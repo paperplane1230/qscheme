@@ -337,15 +337,19 @@ def _do_math_op(func, exprs):
         require_type(all(isa(i,int) for i in exprs),
                 'parameters of gcd must be integers')
         exprs.insert(0, 0)
-    if func is lcm:
+    elif func is lcm:
         require_type(all(isa(i,int) for i in exprs),
                 'parameters of lcm must be integers')
         exprs.insert(0, 1)
-    if func is op.sub and len(exprs) == 1:
+    elif func is op.add and len(exprs) == 0:
+        exprs.append(0)
+    elif func is op.mul and len(exprs) == 0:
+        exprs.append(1)
+    elif func is op.sub and len(exprs) == 1:
         exprs.insert(0, 0)
-    if func is op.truediv and len(exprs) == 1:
+    elif func is op.truediv and len(exprs) == 1:
         exprs.insert(0, 1)
-    if func is op.truediv:
+    elif func is op.truediv:
         molecular = exprs.pop(0)
         sum = functools.reduce(op.mul, exprs)
         return fractions.Fraction(molecular, sum)
