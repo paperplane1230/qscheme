@@ -179,7 +179,23 @@ def append(*values):
     result = Pair(members[-1], last)
     for i in reversed(members[:-1]):
         result = Pair(i, result)
+    if _can_be_list(result):
+        return _pair2list(result)
     return result
+
+def do_is(op_left, op_right):
+    """Judge whether op_left is op_right."""
+    if isa(op_left, float) and isa(op_right, float):
+        return op_left == op_right
+    return op_left is op_right
+
+def do_sqrt(num):
+    """Compute square root of the number."""
+    if num < 0:
+        from cmath import sqrt
+        return sqrt(num)
+    from math import sqrt
+    return sqrt(num)
 
 def is_list(s_list):
     """Judge whether it's a list."""
@@ -189,11 +205,20 @@ def is_pair(pair):
     """Judge whether it's a pair."""
     return isa(pair, Pair) or is_list(pair)
 
+def _can_be_list(pair):
+    """Judge whether a pair can be converted into a list."""
+    assert(isa(pair, Pair))
+    return str(pair).find(' . ') < 0
+
+def _should_be_pair(s_list):
+    """Judge whether a list should be a pair."""
+    assert(isa(s_list, List))
+    return str(s_list).find(' . ') > 0
+
 def cons(first, second):
-    """Construct a pair or a list if possible.
-    """
+    """Construct a pair or a list if possible."""
     pair = Pair(first, second)
-    if str(pair).find(' . ') < 0:
+    if _can_be_list(pair):
         pair = _pair2list(pair)
     return pair
 
@@ -220,11 +245,18 @@ def set_car(pair, val):
 def set_cdr(pair, val):
     """Set cdr of the pair."""
     pair.cdr = val
-    if isa(pair, Pair) and str(pair).find(' . ') < 0:
+    if isa(pair, Pair) and _can_be_list(pair):
         return _pair2list(pair)
-    if isa(pair, List) and str(pair).find(' . ') > 0:
+    if isa(pair, List) and _should_be_pair(pair):
         return _list2pair(pair)
     return pair
+
+def get_cdr(pair):
+    """Get cdr of a pair or list."""
+    result = pair.cdr
+    if isa(result, Pair) and _can_be_list(result):
+        return _pair2list(result)
+    return result
 
 isa = isinstance
 

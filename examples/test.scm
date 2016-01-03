@@ -42,8 +42,6 @@ x;=> 3
 (if 1 2 3 4);=raises=> SyntaxError (if 1 2 3 4): wrong length
 (lambda 3 3);=raises=> SyntaxError (lambda 3 3): illegal lambda argument list
 (lambda (x));=raises=> SyntaxError (lambda (x)): wrong length
-(if (= 1 2) (define-macro a 'a) 
-    (define-macro a 'b));=raises=> SyntaxError (define-macro a (quote a)): define-macro only allowed at top level
 (define (twice x) (* 2 x));=> None
 (twice 2);=> 4
 (twice 2 2);=raises=> TypeError expected (x), given (2 2), 
@@ -70,15 +68,7 @@ x;=> 3
             (if (> start end) acc (sumsq-acc (+ start 1) end (+ (* start start) acc))))
          (sumsq-acc start end 0));=> None
 (sum-squares-range 1 3000);=> 9004500500
-(call/cc (lambda (throw) (+ 5 (* 10 (throw 1))))) ;; throw;=> 1
-(call/cc (lambda (throw) (+ 5 (* 10 1)))) ;; do not throw;=> 15
-(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (escape 3)))))))) ; 1 level;=> 35
-(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 (throw 3)))))))) ; 2 levels;=> 3
-(call/cc (lambda (throw) 
-         (+ 5 (* 10 (call/cc (lambda (escape) (* 100 1))))))) ; 0 levels;=> 1005
-(* 1i 1i);=> (-1+0i)
+(* 0+i 0+i);=> (-1+0i)
 (sqrt -1);=> 1i
 (let ((a 1) (b 2)) (+ a b));=> 3
 (let ((a 1) (b 2 3)) (+ a b));=raises=> SyntaxError (let ((a 1) (b 2 3)) (+ a b)): illegal binding list
@@ -86,10 +76,6 @@ x;=> 3
 (and (> 2 1) 2 3);=> 3
 (and);=> #t
 (and (> 2 1) (> 2 3));=> #f
-(define-macro unless (lambda args `(if (not ,(car args)) (begin ,@(cdr args))))) ; test `;=> None
-(unless (= 2 (+ 1 1)) (display 2) 3 4);=> None
-2
-(unless (= 4 (+ 1 1)) (display 2) (display "\n") 3 4);=> 4
 (quote x);=> x
 (quote (1 2 three));=> (1 2 three)
 'x;=> x

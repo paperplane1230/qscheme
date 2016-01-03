@@ -53,9 +53,9 @@ def _init_global_env(env):
     import math
     env.update({
         '+':op.add, '-':op.sub, '*':op.mul, '/':op.truediv, 'not':not_op,
-        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':op.is_, 'length':len,
+        '>':op.gt, '<':op.lt, '>=':op.ge, '<=':op.le, '=':do_is, 'length':len,
         'cons':cons, 'set-car!':set_car, 'set-cdr!':set_cdr, 'gcd':fractions.gcd,
-        'car':lambda x: x.car, 'cdr':lambda x: x.cdr, 'rational?':is_rational,
+        'car':lambda x: x.car, 'cdr':get_cdr, 'rational?':is_rational,
         'boolean?':lambda x: isa(x,bool), 'integer?':is_int, 'lcm':lcm,
         'real?':is_rational,    # it seems in scheme rational? equals real?
         'number?':is_number, 'null?':lambda x: x==[], 'equal?':op.eq,
@@ -64,7 +64,7 @@ def _init_global_env(env):
         'number->string':num2str,'string->number':str2num, 'make-list':make_list,
         'pair?':is_pair, 'list?':is_list, 'append':append, 'display':display,
         'quotient':quotient, 'remainder':remainder, 'modulo':op.mod,
-        'sqrt':math.sqrt, 'numerator':numerator, 'denominator':denominator,
+        'sqrt':do_sqrt, 'numerator':numerator, 'denominator':denominator,
         'floor':math.floor, 'ceiling':math.ceil, 'truncate':math.trunc,
         'round':round, 'zero?':lambda x: x==0, 'negative?':lambda x: x<0,
         'positive?':lambda x: x>0, 'even?':lambda x: x%2==0, 'or':s_or,
@@ -352,7 +352,11 @@ def _do_math_op(func, exprs):
     elif func is op.truediv:
         molecular = exprs.pop(0)
         sum = functools.reduce(op.mul, exprs)
-        return fractions.Fraction(molecular, sum)
+        try:
+            return fractions.Fraction(molecular, sum)
+        except TypeError:
+            # when molecular or sum is a float
+            return molecular / sum
     return functools.reduce(func, exprs)
 
 def _do_cmp_op(func, exprs):
