@@ -1,5 +1,5 @@
 #qscheme
-A simple tiny scheme interpreter referring to http://norvig.com/lispy2.html.
+A simple tiny scheme interpreter referring to http://norvig.com/lispy2.html, **without** macro and call/cc.
 
 #Usage
     python3 scheme.py
