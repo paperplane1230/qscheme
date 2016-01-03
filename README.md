@@ -1,5 +1,5 @@
 #qscheme
-A simple tiny scheme interpreter referring to http://norvig.com/lispy2.html, **without** macro and call/cc.
+A simple tiny scheme interpreter referring to http://norvig.com/lispy2.html.
 
 #Usage
     python3 scheme.py
@@ -12,3 +12,7 @@ or
 then input `(load "examples/test.scm")` in the interactive environment
 
     > (load "examples/test.scm")
+
+#Todo
+    macro
+    call/cc
